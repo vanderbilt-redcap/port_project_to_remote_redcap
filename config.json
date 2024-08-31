@@ -1,0 +1,75 @@
+{
+    "name": "Port Project to Remote REDCap",
+    "description": "Ports a project and its logs to a remote REDCap instance",
+    "namespace": "PPtRR\\ExternalModule",
+    "documentation": "README.md",
+    "framework-version": 16,
+    "enable-every-page-hooks-on-system-pages": true,
+    "authors": [
+        {
+            "name": "Kyle Chesney",
+            "email": "datacore@vumc.org",
+            "institution": "Vanderbilt University Medical Center"
+        }
+    ],
+    "system-settings": [
+        {
+            "name": "Target Remote Server Credentials",
+            "key": "system_target_remotes",
+            "type": "sub_settings",
+            "repeatable": true,
+            "sub_settings": [
+                {
+                    "name": "Remote API URI",
+                    "key": "super_remote_api_uri",
+                    "type": "text"
+                },
+                {
+                    "name": "Remote Super Token",
+                    "key": "remote_super_token",
+                    "type": "text"
+                }
+        ]}
+    ],
+    "project-settings": [
+        {
+            "name": "Target Remote Server Credentials",
+            "key": "target_remotes",
+            "type": "sub_settings",
+            "repeatable": true,
+            "sub_settings": [
+                {
+                    "name": "Remote API URI",
+                    "key": "remote_api_uri",
+                    "type": "text"
+                },
+                {
+                    "name": "Remote Project Token",
+                    "key": "remote_api_token",
+                    "type": "text"
+                }
+        ]}
+    ],
+    "links": {
+        "project": [
+            {
+                "name": "Copy Project to Remote REDCap",
+                "icon": "fas fa-cloud-arrow-up",
+                "url": "pages/project_page.php",
+                "show-header-and-footer": true
+            },
+            {
+                "name": "Download Log Dump Zip",
+                "icon": "fas fa-file-zipper",
+                "url": "pages/download_log_zip.php",
+                "show-header-and-footer": false
+            }
+        ]
+    },
+    "crons": [
+    ],
+    "compatibility": {
+        "redcap-version-min": "13.7.0"
+    }
+
+}
