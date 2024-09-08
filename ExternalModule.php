@@ -8,6 +8,9 @@ use ZipArchive;
 
 class ExternalModule extends AbstractExternalModule {
 
+    private $file_fields = [];
+    private $Proj;
+
     function dumpMetaData($pid = null) {
         if ($pid === null) {
             $pid = $this->framework->getProjectId();
@@ -46,6 +49,7 @@ class ExternalModule extends AbstractExternalModule {
 
         return [$pid, $zip_loc];
     }
+
 
     private function makeZip(array $files) {
         $z = new ZipArchive();
@@ -98,6 +102,7 @@ class ExternalModule extends AbstractExternalModule {
         return $tmp;
     }
 
+
     function storeZipFilesInRepository($zip_file) {
         $z = new ZipArchive();
 
@@ -111,7 +116,6 @@ class ExternalModule extends AbstractExternalModule {
             $filename = "foo.csv";
             REDCap::storeFile($file, $pid, $filename);
         }
-
     }
 
 
@@ -139,6 +143,9 @@ class ExternalModule extends AbstractExternalModule {
                 $creds[$part] = $project_settings[$part][$i];
             }
         }
+
+        // this function is equivalent to module instantiation for Proj object purposes
+        $this->Proj = new \Project();
 
         return $creds;
     }
@@ -178,7 +185,8 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function updateRemoteMetadata($creds, $source_project_id = null) {
+    function updateRemoteMetadata(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
+        // NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
         $dd = \MetaData::getDataDictionary(
             /*$returnFormat = */ 'json',
             /*$returnCsvLabelHeaders = */ true,
@@ -191,8 +199,17 @@ class ExternalModule extends AbstractExternalModule {
             /*$delimiter = */ ','
         );
 
+        if ($this->Proj->hasFileUploadFields) {
+            $dd_arr = json_decode($dd, 1);
+            foreach ($dd_arr as $field) {
+                if ($field['field_type'] === 'file') {
+                    $this->file_fields[] = $field['field_name'];
+                }
+            }
+        }
+
         $reset_data = '[{"field_name":"record_id","form_name":"demographics","section_header":"","field_type":"text","field_label":"Study ID","select_choices_or_calculations":"","field_note":"","text_validation_type_or_show_slider_number":"","text_validation_min":"","text_validation_max":"","identifier":"","branching_logic":"","required_field":"","custom_alignment":"","question_number":"","matrix_group_name":"","matrix_ranking":"","field_annotation":""}]';
-        if (0) { $dd = $reset_data; }
+        if ($reset_remote_metadata) { $dd = $reset_data; }
 
         $post_params = [
             "content" => "metadata",
@@ -210,11 +227,12 @@ class ExternalModule extends AbstractExternalModule {
             "content" => "record",
             "format" => "json",
             "type" => "flat",
-            "fields" => "record_id"
+            "fields" => $this->Proj->table_pk
         ];
         $dr = $this->curlPOST($creds, $post_params);
 
-        $del_recs = array_values(array_column(json_decode($dr, true), "record_id"));
+        // NOTE: this assumes the remote project's primary key is identical to local
+        $del_recs = array_values(array_column(json_decode($dr, true), $this->Proj->table_pk));
 
         $post_params = [
             "content" => "record",
@@ -222,14 +240,12 @@ class ExternalModule extends AbstractExternalModule {
             "records" => $del_recs
         ];
 
-        $resp = $this->curlPOST($creds, $post_params);
-        return $resp;
+        $response = $this->curlPOST($creds, $post_params);
+        return $response;
     }
 
 
     function portRemoteRecords($creds, $source_project_id = null) {
-        // FIXME: does not port files
-
         $get_data_params = [
             "project_id" => $source_project_id,
             "return_format" => "json"
@@ -246,8 +262,61 @@ class ExternalModule extends AbstractExternalModule {
         ];
 
         $response = $this->curlPOST($creds, $post_params);
+
+        // port edocs individually
+        // NOTE: as per the API documentation this is NOT suitable for signatures
+        // TODO: handle repeat events and instances
+        if ($this->Proj->hasFileUploadFields) {
+            $rc_data_arr = json_decode($rc_data, 1);
+            $record_primary_key = $this->Proj->table_pk;
+
+            foreach($this->file_fields as $doc_field) {
+                foreach($rc_data_arr as $_ => $record) {
+
+                    $this_doc_id = $record[$doc_field];
+
+                    $file_data = [
+                        "record_primary_key" => $record[$record_primary_key],
+                        "doc_id" => $this_doc_id,
+                        "field_name" => $doc_field
+                    ];
+
+                    $this->portFile($creds, $file_data);
+                }
+            }
+        }
+
         return $response;
     }
+
+
+    function portFile(array $creds, array $file_data) {
+        // REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
+        $sql = "SELECT stored_name, mime_type, doc_name FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
+        $edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
+
+        $cfile = curl_file_create(EDOC_PATH . $edocs_tbl['stored_name'], $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
+
+        $post_params = [
+            "content" => "file",
+            "action" => "import",
+            "record" => $file_data['record_primary_key'],
+            "field" => $file_data['field_name'],
+            "file" => $cfile,
+            "returnFormat" => "json"
+        ];
+
+        if (0) {
+            $post_params["event"] = $event;
+        }
+        if (0) {
+            $post_params["repeat_instance"] = $repeat_instance;
+        }
+
+        $response = $this->curlPOST($creds, $post_params);
+        return $response;
+    }
+
 
     function dumpMetadataToFileRepository($creds) {
         [$pid, $zip_pointer] = $this->dumpMetaData();
@@ -258,7 +327,6 @@ class ExternalModule extends AbstractExternalModule {
         $post_params = [
             "content" => "fileRepository",
             "action" => "import",
-            // "file" => file_get_contents($zip_loc),
             "file" => $cfile,
             "returnFormat" => "json"
         ];
@@ -267,6 +335,7 @@ class ExternalModule extends AbstractExternalModule {
 
         return $r;
     }
+
 
     function curlPOST($creds, $post_params) {
         $ch = curl_init();
