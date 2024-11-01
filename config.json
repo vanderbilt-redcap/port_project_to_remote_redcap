@@ -18,6 +18,8 @@
             "key": "system_target_remotes",
             "type": "sub_settings",
             "repeatable": true,
+            "hidden": true,
+            "developer_comment": "This is a placeholder field to facilitate automatic creation of target projects on the remote instance via use of a super API token",
             "sub_settings": [
                 {
                     "name": "Remote API URI",
@@ -29,7 +31,12 @@
                     "key": "remote_super_token",
                     "type": "text"
                 }
-        ]}
+        ]},
+        {
+            "name": "Warning Text",
+            "key": "warning_text",
+            "type": "text"
+        }
     ],
     "project-settings": [
         {

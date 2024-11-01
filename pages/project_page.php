@@ -7,6 +7,10 @@ $remote_list = $module->framework->getProjectSetting("remote_api_uri");
 $js_str = "<script> var remote_list = " . json_encode($remote_list) . "</script>";
 echo $js_str;
 
+$warning_text = $module->framework->getSystemSetting("warning_text") ?? "If you are moving your project to a REDCap instance that is outside of your organization's control, please be aware of any data governance policies that may restrict data transfer by institution or region.";
+
+echo $warning_text;
+
 ?>
 <form action="<?=$module->framework->getUrl("ajax.php") ?>" method="POST">
     <label for="remote_index" class="form-label">Target Server API URI</label>
