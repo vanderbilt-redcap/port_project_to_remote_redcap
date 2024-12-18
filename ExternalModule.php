@@ -222,6 +222,10 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
+	/////////////////////////////////////////////////////////////////////////////
+	//                             Record Handling                             //
+	/////////////////////////////////////////////////////////////////////////////
+
     function flushRemoteRecords($creds, $source_project_id = null) {
         $post_params = [
             "content" => "record",
@@ -246,48 +250,91 @@ class ExternalModule extends AbstractExternalModule {
 
 
     function portRemoteRecords($creds, $source_project_id = null) {
-        $get_data_params = [
-            "project_id" => $source_project_id,
-            "return_format" => "json"
-        ];
+			$batch_size = 100;
+			$response = [];
 
-        $rc_data = REDCap::getData($get_data_params);
+			$record_ids = $this->getAllRecordPks();
 
-        $post_params = [
-            "content" => "record",
-            "format" => "json",
-            "type" => "flat",
-            "returnFormat" => "json",
-            "data" => $rc_data
-        ];
+			$record_batches = array_chunk($record_ids, $batch_size);
 
-        $response = $this->curlPOST($creds, $post_params);
-
-        // port edocs individually
-        // NOTE: as per the API documentation this is NOT suitable for signatures
-        // TODO: handle repeat events and instances
-        if ($this->Proj->hasFileUploadFields) {
-            $rc_data_arr = json_decode($rc_data, 1);
-            $record_primary_key = $this->Proj->table_pk;
-
-            foreach($this->file_fields as $doc_field) {
-                foreach($rc_data_arr as $_ => $record) {
-
-                    $this_doc_id = $record[$doc_field];
-
-                    $file_data = [
-                        "record_primary_key" => $record[$record_primary_key],
-                        "doc_id" => $this_doc_id,
-                        "field_name" => $doc_field
-                    ];
-
-                    $this->portFile($creds, $file_data);
-                }
-            }
-        }
+			$batch_idx = 1;
+			foreach($record_batches as $record_batch) {
+				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id);
+			}
 
         return $response;
     }
+
+	private function getAllRecordPks($source_project_id = null) {
+
+		$get_data_params = [
+			"project_id" => $source_project_id,
+			"fields" => $this->Proj->table_pk,
+			"return_format" => "json-array"
+		];
+
+		$get_data_return = REDCap::getData($get_data_params);
+
+		$rc_records = [];
+
+		foreach ($get_data_return as $record) {
+			$rc_records[] = $record[$this->Proj->table_pk];
+		}
+
+		return $rc_records;
+	}
+
+	private function portRecordList(array $creds,  $records, $source_project_id = null) {
+
+		$get_data_params = [
+			"project_id" => $source_project_id,
+			"records" => $records,
+			"return_format" => "json"
+		];
+
+		$rc_data = REDCap::getData($get_data_params);
+
+		$post_params = [
+			"content" => "record",
+			"format" => "json",
+			"type" => "flat",
+			"returnFormat" => "json",
+			"data" => $rc_data
+		];
+
+		$response = $this->curlPOST($creds, $post_params);
+
+
+		// port edocs individually
+		// NOTE: as per the API documentation this is NOT suitable for signatures
+		// TODO: handle repeat events and instances
+		$this->portFileFields($creds, $rc_data);
+		return $response;
+	}
+
+
+	private function portFileFields($creds, $rc_data) {
+
+			if ($this->Proj->hasFileUploadFields) {
+				$rc_data_arr = json_decode($rc_data, 1);
+				$record_primary_key = $this->Proj->table_pk;
+
+				foreach($this->file_fields as $doc_field) {
+					foreach($rc_data_arr as $_ => $record) {
+
+						$this_doc_id = $record[$doc_field];
+
+						$file_data = [
+							"record_primary_key" => $record[$record_primary_key],
+							"doc_id" => $this_doc_id,
+							"field_name" => $doc_field
+						];
+
+						$this->portFile($creds, $file_data);
+					}
+				}
+			}
+		}
 
 
     function portFile(array $creds, array $file_data) {
