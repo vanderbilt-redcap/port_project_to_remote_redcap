@@ -185,7 +185,35 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function updateRemoteMetadata(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
+	/////////////////////////////////////////////////////////////////////////////
+	//                              Project Design                             //
+	/////////////////////////////////////////////////////////////////////////////
+
+	function updateRemoteProjectDesign($creds) {
+
+		$project_info = $this->updateRemoteProjectInfo($creds);
+		$fields = $this->updateRemoteDataDictionary($creds, null, true);
+		$arms = $this->updateRemoteArms($creds);
+		$events = $this->updateRemoteEvents($creds);
+		$event_mapping = $this->updateRemoteEventMapping($creds);
+		$repeats = $this->updateRemoteRepeats($creds);
+
+		$report = [
+			"project_info" => $project_info,
+			"fields" => $fields,
+			"arms" => $arms,
+			"events" => $events,
+			"event_mapping" => $event_mapping,
+			"repeats" => $repeats
+		];
+
+		$this->framework->log("updateRemoteProjectDesign");
+
+		return json_encode($report);
+
+	}
+
+    function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
         // NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
         $dd = \MetaData::getDataDictionary(
             /*$returnFormat = */ 'json',
@@ -208,8 +236,6 @@ class ExternalModule extends AbstractExternalModule {
             }
         }
 
-        $reset_data = '[{"field_name":"record_id","form_name":"demographics","section_header":"","field_type":"text","field_label":"Study ID","select_choices_or_calculations":"","field_note":"","text_validation_type_or_show_slider_number":"","text_validation_min":"","text_validation_max":"","identifier":"","branching_logic":"","required_field":"","custom_alignment":"","question_number":"","matrix_group_name":"","matrix_ranking":"","field_annotation":""}]';
-        if ($reset_remote_metadata) { $dd = $reset_data; }
 
         $post_params = [
             "content" => "metadata",
@@ -218,8 +244,170 @@ class ExternalModule extends AbstractExternalModule {
             "data" => $dd
         ];
 
+				if ($reset_remote_metadata) {
+					$reset_data = '[{"field_name":"record_id","form_name":"demographics","section_header":"","field_type":"text","field_label":"Study ID","select_choices_or_calculations":"","field_note":"","text_validation_type_or_show_slider_number":"","text_validation_min":"","text_validation_max":"","identifier":"","branching_logic":"","required_field":"","custom_alignment":"","question_number":"","matrix_group_name":"","matrix_ranking":"","field_annotation":""}]';
+					$reset_params = [
+						"content" => "metadata",
+						"format" => "json",
+						"returnFormat" => "json",
+						"data" => $reset_data
+					];
+					$this->curlPOST($creds, $reset_params);
+				}
+
         return $this->curlPOST($creds, $post_params);
     }
+
+
+	// Required for event mapping to import
+	function updateRemoteProjectInfo($creds) {
+
+		global $lang;
+		// Get project object of attributes
+		$Proj = $this->Proj;
+		// Set array of fields we want to return, along with their user-facing names
+		$project_fields = \Project::getAttributesApiExportProjectInfo();
+		//print_array($Proj->project);
+		// Add values for all the project fields
+		$project_values = array();
+		foreach ($project_fields as $key=>$hdr) {
+			// Add to array
+			if (!isset($Proj->project[$key])) {
+				// Leave blank if not in array above
+				$val = '';
+			} elseif (is_bool($Proj->project[$key])) {
+				// Convert boolean to 0 and 1
+				$val = ($Proj->project[$key] === false) ? 0 : 1;
+			} else {
+				// Normal value
+				$val = label_decode($Proj->project[$key]);
+			}
+			$project_values[$hdr] = isinteger($val) ? (int)$val : $val;
+		}
+		// Add longitudinal
+		$project_values['is_longitudinal'] = $Proj->longitudinal ? 1 : 0;
+		// Add repeating instruments and events flag
+		$project_values['has_repeating_instruments_or_events'] = ($Proj->hasRepeatingFormsEvents() ? 1 : 0);
+		// Add any External Modules that are enabled in the project
+		$versionsByPrefix = \ExternalModules\ExternalModules::getEnabledModules($Proj->project_id);
+		$project_values['external_modules'] = implode(",", array_keys($versionsByPrefix));
+		// Reformat the missing data codes to be pipe-separated
+		$theseMissingCodes = array();
+		foreach (parseEnum($project_values['missing_data_codes']) as $key=>$val) {
+			$theseMissingCodes[] = "$key, $val";
+		}
+		$project_values['missing_data_codes'] = implode(" | ", $theseMissingCodes);
+		// Mobile App only
+		if (isset($_POST['mobile_app']) && $_POST['mobile_app'] == '1') {
+			// Add list of records that have been locked at the record-level
+			$Locking = new \Locking();
+			$Locking->findLockedWholeRecord($Proj->project_id);
+			$project_values['locked_records'] = implode("\n", array_keys($Locking->lockedWhole));
+			// Add Form Display Logic settings
+			$project_values['form_display_logic'] = \FormDisplayLogic::outputFormDisplayLogicForMobileApp($Proj->project_id);
+		}
+
+		// actual send
+
+		$post_params = [
+			"content" => "project_settings",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($project_values)
+		];
+
+		return $this->curlPOST($creds, $post_params);
+
+	}
+
+	function updateRemoteArms($creds) {
+
+		$result = \Project::getArmRecords([]);
+
+		$post_params = [
+			"content" => "arm",
+			"action" => "import",
+			"override" => "1",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($result)
+		];
+
+		return $this->curlPOST($creds, $post_params);
+
+	}
+
+	function updateRemoteEvents($creds) {
+
+		$result = \Project::getEventRecords([], $this->Proj->project['scheduling'], false);
+			// $result = Project::getEventRecords($post, $Proj->project['scheduling'], !(isset($post['mobile_app']) && $post['mobile_app'] == '1'));
+
+
+		$post_params = [
+			"content" => "event",
+			"action" => "import",
+			"override" => "1",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($result)
+		];
+
+		return $this->curlPOST($creds, $post_params);
+	}
+
+	function updateRemoteEventMapping($creds) {
+
+		$result = \Project::getInstrEventMapRecords([]);
+
+		$post_params = [
+			"content" => "formEventMapping",
+			"action" => "import",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($result)
+		];
+
+		return $this->curlPOST($creds, $post_params);
+	}
+
+	function updateRemoteRepeats($creds) {
+
+		if (!$this->Proj->hasRepeatingFormsEvents()) {
+			return "this project is not repeating";
+		}
+
+		// adapted from API export
+		$raw_values = $this->Proj->getRepeatingFormsEvents();
+		if($this->Proj->longitudinal){
+			$eventForms = $this->Proj->eventsForms;
+			foreach ($eventForms as $dkey=>$row){
+				$event_name = \Event::getEventNameById($this->Proj->project_id,$dkey);
+				$sql = "select form_name, custom_repeat_form_label from redcap_events_repeat where event_id = " . db_escape($dkey) . "";
+				$q = db_query($sql);
+				if(db_num_rows($q) > 0){
+					while ($row = db_fetch_assoc($q)){
+						$form_name = ($row['form_name'] ? $row['form_name'] : '');
+						$form_label = ($row['custom_repeat_form_label'] ? $row['custom_repeat_form_label'] : '');
+						$results[] = array('event_name'=>$event_name, 'form_name'=>$form_name, 'custom_form_label'=>$form_label);
+					}
+				}
+			}
+		}else {//classic project
+			foreach (array_values($raw_values)[0] as $dkey=>$row){
+				$results[] = array('form_name'=>$dkey, 'custom_form_label'=>$row);
+			}
+		}
+
+
+		$post_params = [
+			"content" => "repeatingFormsEvents",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($results)
+		];
+
+		return $this->curlPOST($creds, $post_params);
+	}
 
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -238,25 +426,35 @@ class ExternalModule extends AbstractExternalModule {
         // NOTE: this assumes the remote project's primary key is identical to local
         $del_recs = array_values(array_column(json_decode($dr, true), $this->Proj->table_pk));
 
-        $post_params = [
-            "content" => "record",
-            "action" => "delete",
-            "records" => $del_recs
-        ];
+				if (empty($del_recs)) {
+					$response = "no records exist in target project";
+					return $response;
+				}
 
-        $response = $this->curlPOST($creds, $post_params);
+				$post_params = [
+					"content" => "record",
+					"action" => "delete",
+					"records" => $del_recs
+				];
+				$response = $this->curlPOST($creds, $post_params);
+
+
         return $response;
     }
 
 
     function portRemoteRecords($creds, $source_project_id = null) {
-			$batch_size = 100;
+			// this batch size identified from TIN
+			$batch_size = 10;
 			$response = [];
 
 			$record_ids = $this->getAllRecordPks();
 
 			$record_batches = array_chunk($record_ids, $batch_size);
 
+			// TODO: wrap this in a try catch, detect OOM error and continue with halved batch size
+			//  or use memory_get_usage to track as limit is approached
+			//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
 			$batch_idx = 1;
 			foreach($record_batches as $record_batch) {
 				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id);
