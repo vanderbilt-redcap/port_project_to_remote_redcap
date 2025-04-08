@@ -581,8 +581,85 @@ class ExternalModule extends AbstractExternalModule {
         return $r;
     }
 
+	/////////////////////////////////////////////////////////////////////////////
+	//                          User related functions                         //
+	/////////////////////////////////////////////////////////////////////////////
 
-    function curlPOST($creds, $post_params) {
+	function deleteUserRoles(array $creds) {
+		// fetch and delete all user roles
+
+		$fetch_roles_post_params = [
+			"content" => "userRole",
+			"returnFormat" => "json"
+		];
+
+		$r1 =  $this->curlPOST($creds, $fetch_roles_post_params);
+
+		$r1;
+
+		$delete_roles_post_params = [
+			"content" => "userRole",
+			"action" => "delete",
+			"roles" => "",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode([$user_role_data])
+		];
+	}
+
+
+	function portUserRoles(array $creds) {
+		$r = [];
+		global $mobile_app_enabled;
+
+		// user roles must be deleted first as the presence of a unique role id field causes a check for a matching role id in the target project
+		// $this->deleteUserRoles($creds);
+
+		$user_role_arr = \UserRights::getUserRolesDetails(PROJECT_ID, $mobile_app_enabled);
+		// add columns  to fit expectations of api endpoint
+		if (0) {
+			foreach ($user_role_arr as $user_role_idx => $user_role_data) {
+
+				$user_role_data["unique_role_name"] = "";
+
+        $post_params = [
+					"content" => "userRole",
+					"format" => "json",
+					"returnFormat" => "json",
+					"data" => json_encode([$user_role_data])
+        ];
+
+        $r[$user_role_idx] =  $this->curlPOST($creds, $post_params);
+
+			}
+		} else {
+			$post_params = [
+				"content" => "userRole",
+				"format" => "json",
+				"returnFormat" => "json",
+				"data" => json_encode($user_role_arr)
+			];
+			$r =  json_decode($this->curlPOST($creds, $post_params), true);
+		}
+
+		return json_encode($r);
+	}
+
+	function portUsers($creds) {
+		global $mobile_app_enabled;
+
+		$users = \UserRights::getUserDetails(PROJECT_ID, $mobile_app_enabled);
+
+		$post_params = [
+			"content" => "user",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($users)
+		];
+
+		$r = $this->curlPOST($creds, $post_params);
+		return $r;
+	}
         $ch = curl_init();
 
         if (substr($creds["remote_api_uri"], -5) !== "/api/") {
