@@ -210,7 +210,6 @@ class ExternalModule extends AbstractExternalModule {
 		$this->framework->log("updateRemoteProjectDesign");
 
 		return json_encode($report);
-
 	}
 
     function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
@@ -321,6 +320,19 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 	function updateRemoteArms($creds) {
+		// NOTE: the following function makes a call to die if arms <= 1
+		// $result = \Project::getArmRecords([]);
+
+		$Proj = new \Project();
+
+		if (!$Proj->longitudinal) {
+			// As a sanity check, ensure the project doesn't have some empty arms, in which case it is "sort of" longitudinal
+						$sql = "select count(*) from redcap_events_arms where project_id = ?";
+						$numArms = db_result(db_query($sql, $Proj->project_id));
+						if ($numArms <= 1) {
+							return;
+						}
+				}
 
 		$result = \Project::getArmRecords([]);
 
@@ -334,7 +346,6 @@ class ExternalModule extends AbstractExternalModule {
 		];
 
 		return $this->curlPOST($creds, $post_params);
-
 	}
 
 	function updateRemoteEvents($creds) {
