@@ -521,6 +521,10 @@ class ExternalModule extends AbstractExternalModule {
 		return $response;
 	}
 
+	///////////////////////////////////////////////////////////////////////////////
+	//                                  File operations                          //
+	///////////////////////////////////////////////////////////////////////////////
+
 
 	private function portFileFields($creds, $rc_data) {
 
@@ -569,7 +573,7 @@ class ExternalModule extends AbstractExternalModule {
             $post_params["repeat_instance"] = $repeat_instance;
         }
 
-        $response = $this->curlPOST($creds, $post_params);
+        $response = $this->curlPOST($creds, $post_params, $is_file = true);
         return $response;
     }
 
@@ -578,7 +582,8 @@ class ExternalModule extends AbstractExternalModule {
         [$pid, $zip_pointer] = $this->dumpMetaData();
         $zip_loc = stream_get_meta_data($zip_pointer)['uri'];
 
-        $cfile = curl_file_create($zip_loc, 'application/zip', "logs.zip");
+				$cfile_name = date("Y-m-d_H.i.s") . "-$pid-logs.zip";
+        $cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
 
         $post_params = [
             "content" => "fileRepository",
@@ -587,6 +592,10 @@ class ExternalModule extends AbstractExternalModule {
             "returnFormat" => "json"
         ];
 
+        $r =  $this->curlPOST($creds, $post_params, true);
+
+        return $r;
+    }
         $r =  $this->curlPOST($creds, $post_params);
 
         return $r;
@@ -671,6 +680,10 @@ class ExternalModule extends AbstractExternalModule {
 		$r = $this->curlPOST($creds, $post_params);
 		return $r;
 	}
+	/////////////////////////////////////////////////////////////////////////////
+	//                            Utility Functions                            //
+	/////////////////////////////////////////////////////////////////////////////
+    function curlPOST($creds, $post_params, $is_file = false) {
         $ch = curl_init();
 
         if (substr($creds["remote_api_uri"], -5) !== "/api/") {
@@ -685,7 +698,10 @@ class ExternalModule extends AbstractExternalModule {
         $post_params["token"] = $creds["remote_api_token"];
 
         // cannot http_build_query($post_params, '', '&') with files
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_params);
+        if (!$is_file) {
+					$post_params = http_build_query($post_params, '', '&');
+				}
+				curl_setopt($ch, CURLOPT_POSTFIELDS, $post_params);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $is_localhost);
@@ -699,7 +715,6 @@ class ExternalModule extends AbstractExternalModule {
         $server_output = curl_exec($ch);
 
         curl_close($ch);
-
         return $server_output;
     }
 
