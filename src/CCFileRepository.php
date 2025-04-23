@@ -62,15 +62,23 @@ class CCFileRepository {
 	}
 
 	function createRemoteFolders() {
+		$this->mapRemoteToLocal();
 		foreach($this->local_file_repo as &$local_folder) {
 			$response = $this->createRemoteFolder($local_folder);
 
-			// TODO: test with nested directories
-			$local_folder["remote_info"] = json_decode($response, true);
+	// TODO: is it possible to hit this condition?
+	if ($response === "already_mapped") {
+	continue;
+}
+	$local_folder["remote_info"] = $response;
 		}
 	}
 
 	function createRemoteFolder($input_folder) {
+
+	if ($input_folder["remote_info"]["folder_id"]) {
+	return $input_folder["remote_info"];
+}
 
 		$post_params = [
 			"content" => "fileRepository",
@@ -78,7 +86,8 @@ class CCFileRepository {
 			"format" => "json",
 			"name" => $input_folder["name"],
 			// TODO: make sure support nested folders properly during tree recreation, protect against mismatch
-			"folder_id" => ($input_folder["remote_info"]["parent_folder"] ?? $input_folder["folder_id"]) ?? null,
+			// "folder_id" => ($input_folder["remote_info"]["parent_folder"] ?? $input_folder["folder_id"]) ?? null,
+			"folder_id" => ($input_folder["remote_info"]["parent_folder"] ?? null),
 			// TODO: these must be built from a local:remote map with name as an intermediary
 			// "dag_id" => $input_folder["dag_id"],
 			// "role_id" => $input_folder["role_id"]
@@ -86,9 +95,40 @@ class CCFileRepository {
 		];
 
 		// TODO: handle if this dir exists
-		$response = $this->module->curlPOST(null, $post_params);
+		$raw_response = $this->module->curlPOST(null, $post_params);
+		$response = json_decode($raw_response, true);
+
+		if (!is_null($response["error"])) {
+			$err = $response["error"];
+	// NOTE: this shouldn't actually happen
+			if(str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
+				// find remote folder id with this name
+				$foo = true;
+				$this->mapRemoteToLocal();
+
+				return "already_mapped";
+			} else {
+				// TODO: handle other errors
+			}
+		} else {
+// TODO: is this ever more than a single array?
+			$response = $response[0];
+		}
 
 		return $response;
+	}
+
+	function mapRemoteToLocal() {
+		$remote_file_repo = json_decode($this->module->getRemoteFileRepository(), true);
+
+		foreach($this->local_file_repo as $_ => &$local_folder) {
+			foreach($remote_file_repo as $_ => $remote_folder) {
+				// TODO: what if subdirs have identical names?
+				if ($local_folder["name"] == $remote_folder["name"]) {
+					$local_folder["remote_info"] = $remote_folder;
+				}
+			}
+		}
 	}
 
 	function getRemoteFolderId($local_folder_id) {

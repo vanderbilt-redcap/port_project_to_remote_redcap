@@ -25,6 +25,9 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 	function createReservedFileRepoFolder() {
+		// TODO: consider altering this to allow override with the same module object
+		// better alternative would likely just be to have a pseudo-constructor function refresh everything
+		if (!is_null($this->remote_file_repo_folder)) { return; }
 		$input_folder = [
 			"name" => self::RESERVED_FILE_REPO_DIR_NAME
 		];
@@ -33,7 +36,7 @@ class ExternalModule extends AbstractExternalModule {
 
 		// TODO: check if reserved folder exists
 		$folder_creation_response = $CCFR->createRemoteFolder($input_folder);
-		$this->remote_file_repo_folder = json_decode($folder_creation_response, true)[0]["folder_id"];
+		$this->remote_file_repo_folder = $folder_creation_response["folder_id"];
 	}
 
 	function getReservedFileRepoFolder() {
@@ -676,12 +679,19 @@ class ExternalModule extends AbstractExternalModule {
 // TODO: migrate this ... somewhere useful, lol
 					// $remote_file_repo = json_decode($this->getRemoteFileRepository($creds), true);
 
+					if ($file_repo) {
+						// allow null for root-level items that come from the file repo
+						$remote_folder_id = $file_data["target_folder"];
+					} else {
+						// TODO: specific signature dir
+						$remote_folder_id = ($file_data["target_folder"] ?? $this->getReservedFileRepoFolder());
+					}
 					$post_params = [
 						"content" => "fileRepository",
 						"action" => "import",
 						"file" => $cfile,
 						"returnFormat" => "json",
-						"folder_id" => ($file_data["target_folder"] ?? $this->getReservedFileRepoFolder())
+						"folder_id" => $remote_folder_id
 					];
 				} else {
 					$post_params = [
@@ -733,7 +743,7 @@ class ExternalModule extends AbstractExternalModule {
 
     function portFileRepository($creds) {
 			$this->setCreds($creds);
-			// TODO: it would be easiest to gather this data via the API for the source project
+			// TODO: it may be easier to gather this data via the API for the source project
 			// NOTE: \FileRepository functions are tightly coupled with UI functionality
 			// getFolderList is almost ok, but getFileList returns an array of html-formatted descriptive information
 
@@ -750,8 +760,13 @@ class ExternalModule extends AbstractExternalModule {
 				$file_repo_tree = $CCFR->getLocalFileRepo();
 			}
 
-			// manually add file repo root
-			$file_repo_tree[] = ["folder_id" => null];
+			// manually add file repo root as first item
+			array_unshift($file_repo_tree, [
+				"name" => "root",
+					"folder_id" => null
+					// TODO: might need to set some remote_info here
+			]
+			);
 
 			$total_files_transferred = 0;
 
@@ -764,7 +779,7 @@ class ExternalModule extends AbstractExternalModule {
 				$file_list[$folder_id] = $CCFR->getFileRepositoryFolderContents($folder_id);
 
 				foreach($file_list[$folder_id] as $local_folder_id => $file_id) {
-					$remote_folder_id = $folder_info["remote_info"][0]["folder_id"] ?? null;
+					$remote_folder_id = $folder_info["remote_info"]["folder_id"] ?? null;
 					$file_data = [
 						"doc_id" => $file_id,
 						"target_folder" => $remote_folder_id
@@ -775,15 +790,26 @@ class ExternalModule extends AbstractExternalModule {
 				}
 			}
 
-			// TODO: revert this after fixing single character explosion of nested objects on fronted
-			// return json_encode($folder_info);
-			// return json_encode("repository_files_transferred: ${total_files_transferred}");
-			// return "repository_files_transferred: ${total_files_transferred}";
-			return json_encode($total_files_transferred);
-			// TODO: ensure tree structure is respected
+	// get only the folder names and xferred files
+	$out = [];
+
+			array_filter($file_repo_tree, function($v, $k) use (&$out) {
+				$nr1 = array_filter($v, function($v1, $k1) use (&$out) {
+					$is_match = in_array($k1, ["name", "files_transferred"]);
+					return $is_match;
+				}, ARRAY_FILTER_USE_BOTH);
+				$out[$nr1["name"]] = $nr1["files_transferred"];
+			}, ARRAY_FILTER_USE_BOTH);
+
+			$return_item = array_merge(
+				["total_items_transferred" => $total_files_transferred],
+					$out
+			);
+
+			return json_encode($return_item);
     }
 
-	function getRemoteFileRepository($creds) {
+	function getRemoteFileRepository($creds = null) {
 		// TODO: check for extant file structure
 		$post_params = [
 			"content" => "fileRepository",

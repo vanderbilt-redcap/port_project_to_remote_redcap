@@ -33,7 +33,7 @@ case "port_records":
 	break;
 case "port_file_repository":
 	// $module->createReservedFileRepoFolder();
-	$port_result = $module->portFileRepository($creds);
+	$port_result = json_decode($module->portFileRepository($creds));
 	$report_arr[$task] = $port_result;
 	break;
 case "store_logs":
