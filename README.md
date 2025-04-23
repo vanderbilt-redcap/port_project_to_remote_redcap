@@ -28,7 +28,7 @@ This module is intended to facilitate one-time migration of a project to a diffe
 ## Use
 
 A new blank project should be created on the remote REDCap server, an API token needs to be created for this project and provided to the module.  
-Creating this API token for a user specifically created for API tasks may be helpful for identifying log traffic created by this module.
+Creating this API token for a user specifically created for API tasks is highly recommended to aid in identifying log traffic created by this module.
 
 Set the **Remote API URI** and the generated **Remote Project API Token** in the module settings of the project you wish to migrate to the remote server.
 
@@ -48,4 +48,5 @@ Log records associated with the project are collated locally in temporary files 
 Additionally, you may be limited by the remote server's file upload settings (by default, the File Repository has "unlimited" capacity but individual files are limited to 128MB).
 
 Migration of data to an _earlier_ version of REDCap is not explicitly supported and may have unexpected behavior.  
-Cloud storage of files on is not supported, whether on the local on remote REDCap instances (the latter may work, but this is entirely untested).
+Cloud storage of files is not _explicitly_ supported whether on the local or remote REDCap instances (the latter may work, but this is entirely untested).
+  

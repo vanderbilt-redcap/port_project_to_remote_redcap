@@ -18,24 +18,34 @@ echo "<script> var pptr_endpoint = '" . $module->framework->getUrl("ajax.php") .
 echo "<script> var redcap_csrf_token = '" . $module->framework->getCSRFToken() . "';</script>";
 
 ?>
-// <form action="<?=$module->framework->getUrl("ajax.php") ?>" method="POST" id="crispi_form">
+<!-- <form action="<?=$module->framework->getUrl("ajax.php") ?>" method="POST" id="crispi_form"> -->
 <form id="crispi_form">
     <label for="remote_index" class="form-label">Target Server API URI</label>
     <select name="remote_index" class="form-select" aria-label="Select remote server" id="remote_select"></select>
 
+	<!--
 	<label for="new_status">Change project status after transfer</label>
-		<select name="new_status" id="new_status" class="form-select status-control" aria-label"New Status">
-		<option value="0" selected></option>
-		<option value="1">Completed</option>
-		<option value="2">Analysis/cleanup</option>
-		</select>
+	<select name="new_status" id="new_status" class="form-select status-control" aria-label"New Status">
+	<option value="0" selected></option>
+	<option value="1">Completed</option>
+	<option value="2">Analysis/cleanup</option>
+	</select>
+	-->
 
-    <div class="form-check">
-    <input name="flush_records" class="form-check-input" type="checkbox" value="1" id="flexCheckChecked">
-    <label class="form-check-label" for="flexCheckChecked">
-    Flush records
-    </label>
-    </div>
+	<div class="form-check">
+	<input name="flush_records" class="form-check-input" type="checkbox" value="1" id="flush_records">
+	<label class="form-check-label" for="flush_records">
+	Flush records
+	</label>
+	</div>
+
+	<div class="form-check">
+	<!-- HACK: KYLE: default checked to make it easier -->
+	<input name="retain_title" class="form-check-input" type="checkbox" value="1" id="retain_title" checked>
+	<label class="form-check-label" for="retain_title">
+	Retain project title
+	</label>
+	</div>
 
 
     <button type="submit" class="btn btn-primary">Transfer project</button>

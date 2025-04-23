@@ -8,25 +8,33 @@ $report_arr = [];
 $task = $_POST["task"];
 $report_arr[$task] = [];
 
+
 switch ($task) {
 case "update_remote_project_design":
 	if ($_POST["flush_records"]) {
 		$records_flushed = $module->flushRemoteRecords($creds);
 	}
-	$project_design = json_decode($module->updateRemoteProjectDesign($creds), true);
+	$project_design = json_decode($module->updateRemoteProjectDesign($creds, (bool) $_POST["retain_title"]), true);
 	$report_arr[$task] = $project_design;
 	$report_arr[$task]["records_flushed"] = $records_flushed;
 	break;
 case "port_users":
 	$report_arr[$task]["users"] = json_decode($module->portUsers($creds), true);
 	$module->log("portUsers");
-	$report_arr[$task]["user_roles"] = json_decode($module->portUserRoles($creds), true);
+	// user roles must be deleted first as the presence of a unique role id field causes a check for a matching role id in the target project
+	$report_arr[$task]["user_roles_deleted"] = $module->deleteUserRoles($creds);
+	$report_arr[$task]["user_roles_imported"] = json_decode($module->portUserRoles($creds), true);
 	$module->log("portUserRoles");
 	break;
 case "port_records":
 	$records_pushed = $module->portRemoteRecords($creds);
 	$module->log("portRemoteRecords");
 	$report_arr[$task] = $records_pushed;
+	break;
+case "port_file_repository":
+	// $module->createReservedFileRepoFolder();
+	$port_result = $module->portFileRepository($creds);
+	$report_arr[$task] = $port_result;
 	break;
 case "store_logs":
 	$meta_conf = $module->dumpMetadataToFileRepository($creds);

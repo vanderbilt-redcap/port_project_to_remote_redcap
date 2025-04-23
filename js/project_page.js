@@ -1,4 +1,7 @@
 $(document).ready(function() {
+	const task_list = ["port_records", "port_users", "port_file_repository", "store_logs"];
+	let n_update_steps = task_list.length + 1;
+
   let i = 0;
   let remote_select = $("#remote_select")[0];
   remote_list.forEach(e => {
@@ -18,7 +21,8 @@ $(document).ready(function() {
 
 		$("#status-updates").show();
 		initializeProgress("update_remote_project_design");
-		const task_list = ["port_records", "port_users", "store_logs"];
+    // TODO: allow override of task_list with checkboxes
+		// const task_list = ["port_file_repository"];
 		task_list.forEach((task) => {initializeProgress(task); });
 
     // port project design, this must be done before records
@@ -44,11 +48,11 @@ $(document).ready(function() {
 				url: pptr_endpoint,
 				data: {
 					"task": task,
-					"redcap_csrf_token": formData.get('redcap_csrf_token'),
-					"remote_index": formData.get('remote_index')
+					// pass all form items
+					...Object.fromEntries(formData.entries())
 				},
 				success: (msg) => {
-					updateProgress(msg);
+					updateProgress(msg, n_update_steps);
 				}
 			});
     }
@@ -86,7 +90,7 @@ $(document).ready(function() {
 			.addClass("alert-info");
 	}
 
-	function updateProgress(response, n_steps = 4) {
+	function updateProgress(response, n_steps = 5) {
 		updateProgressBar(n_steps);
 		updateInformation(response);
 	}
@@ -125,6 +129,7 @@ $(document).ready(function() {
 		status_div.append(ul);
 	}
 
+  // TODO: add sections to bar, use response to colorize section
 	function updateProgressBar(n_steps = 4) {
 		let cur_prog = parseInt($(".progress-bar").attr("aria-valuenow"));
 		let increment = 100 / n_steps;
@@ -135,11 +140,13 @@ $(document).ready(function() {
 			.css('width', `${cur_prog}%`)
 			.attr("aria-valuenow", cur_prog);
 
-		if (cur_prog === 100) {
-			element
-				.removeClass("progress-bar-animated")
-				.removeClass("progress-bar-striped")
-				.addClass("bg-success")
+		if (cur_prog >= 100) {
+		element
+			.css('width', "100%")
+			.attr("aria-valuenow", 100)
+			.removeClass("progress-bar-animated")
+			.removeClass("progress-bar-striped")
+			.addClass("bg-success");
 		}
 	}
 
