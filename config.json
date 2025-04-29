@@ -18,7 +18,7 @@
             "key": "system_target_remotes",
             "type": "sub_settings",
             "repeatable": true,
-            "hidden": true,
+            "//hidden": true,
             "developer_comment": "This is a placeholder field to facilitate automatic creation of target projects on the remote instance via use of a super API token",
             "sub_settings": [
                 {
@@ -58,6 +58,14 @@
         ]}
     ],
     "links": {
+        "control-center": [
+            {
+                "name": "Port Project - XML",
+                "icon": "fas fa-cloud-arrow-up",
+                "url": "pages/super_create.php",
+                "show-header-and-footer": true
+            }
+        ],
         "project": [
             {
                 "name": "Copy Project to Remote REDCap",

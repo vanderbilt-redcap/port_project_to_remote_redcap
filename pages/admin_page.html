@@ -1,0 +1,28 @@
+<form id="crispi_admin_form">
+	<label for="remote_index" class="form-label">Target Server API URI</label>
+	<select name="remote_index" class="form-select" aria-label="Select remote server" id="remote_select"></select>
+
+  <label for="source_project" class="form-label">Source Project (must have this module active, module does not need to be configured)</label>
+  <select name="source_project" class="form-select" aria-label="Select source project" id="source_project_select"></select>
+
+
+	<button type="submit" class="btn btn-primary">Create Project on Remote Server</button>
+
+	</form>
+
+</br>
+
+<div id="status-updates" style="display: none;">
+<div class ="progress">
+	<div id="port-project-progress-bar" class="progress-bar progress-bar-animated progress-bar-striped" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+	</div>
+
+	<div id="status-update-alert-template" class="status-update alert" role="alert" style="display: none;">
+	</div>
+
+
+</div>
+
+
+<!-- <a id="source-project-config-page" type="button" class="btn btn-link" style="display: none;">Go to Project Port Page</a> -->
+<a id="source-project-config-page" class="link-underline-primary" style="display: none;">Go to Project Port Page</a>

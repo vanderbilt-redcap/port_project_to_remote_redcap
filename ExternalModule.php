@@ -7,6 +7,7 @@ use REDCap;
 use ZipArchive;
 
 require_once __DIR__ . '/src/CCFileRepository.php';
+require_once __DIR__ . '/src/SuperToken.php';
 
 class ExternalModule extends AbstractExternalModule {
 
@@ -174,7 +175,7 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function getCredentials($i = 0) {
+    function getCredentials($i = 0, $is_system = false) {
         $creds = [];
 
         $is_system = 0;
