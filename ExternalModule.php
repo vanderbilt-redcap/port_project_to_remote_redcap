@@ -87,10 +87,21 @@ class ExternalModule extends AbstractExternalModule {
 					$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
 				}
 
+				$data_quality_sql = <<<_SQL
+					SELECT * FROM redcap_data_quality_status AS rdqs
+						INNER JOIN redcap_data_quality_resolutions AS rdqr
+						ON rdqs.status_id = rdqr.status_id
+						WHERE project_id = ?
+					_SQL;
+
+				// TODO: event_id is still ambiguous, field comments will have partial information loss
+				// TODO: create compound table from redcap_events_metadata, redcap_arms, redcap_projects
+
         $sql_arrs = [
             "redcap_projects" => $project_sql,
             "redcap_external_module_settings" => $em_sql,
-            "redcap_external_modules_log" => $em_log_sql
+            "redcap_external_modules_log" => $em_log_sql,
+            "redcap_data_quality" => $data_quality_sql
         ];
 
 				if ($small_log) {
