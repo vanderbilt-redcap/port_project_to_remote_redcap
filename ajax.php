@@ -44,8 +44,11 @@ case "store_logs":
 		// TODO: only address this after all actions are completed
 	}
 	break;
+case "get_remote_project_info":
+	$report_arr[$task]["remote_project_info"] = $module->getRemoteProjectInfo($creds);
+	break;
 	default:
-		$report_arr["error"] = "Not a valid action";
+		$report_arr["error"] = "Not a valid action: {$task}";
 }
 
 echo json_encode($report_arr);

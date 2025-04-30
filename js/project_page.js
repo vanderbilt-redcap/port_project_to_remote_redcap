@@ -1,13 +1,17 @@
 $(document).ready(function() {
+	const module = ExternalModules.PPtRR.ExternalModule;
+
+  const pptr_endpoint = module.tt("pptr_endpoint");
+  const remote_list = module.tt("remote_list");
+
+  // TODO: allow individual toggling of these tasks, perhaps after initial run
 	const task_list = ["port_records", "port_users", "port_file_repository", "store_logs"];
 	let n_update_steps = task_list.length + 1;
 
-  let i = 0;
-  let remote_select = $("#remote_select")[0];
-  remote_list.forEach(e => {
-    console.log(e);
-    remote_select.innerHTML += `<option value=${i}>${e}</option>`;
-    i++;
+	let remote_select = $("#remote_select")[0];
+  remote_list.forEach((e, idx) => {
+		remote_select.innerHTML += `<option value=${idx}>${idx}: ${e}</option>`;
+		getRemoteProjectInfo(idx);
   });
 
 	const form = $("#crispi_form")[0];
@@ -123,7 +127,14 @@ $(document).ready(function() {
 
     // TODO: make recursive for nested data, i.e. batched records, port_users
 		for (const k in response_obj[task]) {
-			ul.append(`<li class="list-group-item">${k}: ${response_obj[task][k]}</li>`);
+			let subtask_result = response_obj[task][k];
+
+      // HACK: anything more complex than a string is now just a string
+			if (typeof subtask_result === 'object' && subtask_result !== null) {
+				subtask_result = `<pre>${JSON.stringify(subtask_result)}</pre>`;
+			}
+
+			ul.append(`<li class="list-group-item">${k}: ${subtask_result}</li>`);
 		}
 
 		status_div.append(ul);
@@ -150,4 +161,51 @@ $(document).ready(function() {
 		}
 	}
 
+  async function getRemoteProjectInfo(idx) {
+		await $.ajax({
+			type: "POST",
+			url: pptr_endpoint,
+			data: {
+				"task": "get_remote_project_info",
+				"remote_index": idx,
+				"redcap_csrf_token": redcap_csrf_token
+			},
+			success: (msg) => {
+				setRemoteProjectInfo(idx, msg);
+        // TODO: activate select2 once all remotes have info
+				// below is not reliable, typically results in at least 1 not finishing
+        // if (idx === remote_select.length - 1) {
+        //   $(remote_select).select2();
+        // }
+			}
+		});
+	}
+
+	async function setRemoteProjectInfo(idx, msg) {
+		let better_title = "something is wrong with this endpoint";
+    console.log(idx);
+
+		// TODO: does not update title for item 0
+		let target_option = $(`select#remote_select > option[value="${idx}"]`);
+		try {
+			let remote_project_info = JSON.parse(msg);
+			let rpi1 = remote_project_info["get_remote_project_info"]
+			let rpi2 = JSON.parse(rpi1["remote_project_info"]);
+
+			if ("error" in rpi2) {
+				better_title = rpi2["error"];
+			} else {
+				better_title = `PID: ${rpi2["project_id"]} | Title: ${rpi2["project_title"]}`;
+			}
+
+		} catch(error) {
+      console.log(error);
+			console.log(`${idx} is not json`);
+			console.log(msg);
+		} finally {
+			target_option.text(
+				`${target_option.text()} :: ${better_title}`
+			);
+		}
+	}
 });

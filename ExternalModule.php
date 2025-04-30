@@ -1006,4 +1006,16 @@ class ExternalModule extends AbstractExternalModule {
             $this->framework->tt_addToJavascriptModuleObject($k, $v);
         }
     }
+	public function getRemoteProjectInfo($creds = null) {
+		if (is_null($creds)) {
+			$creds = $this->creds;
+		}
+
+		$post_params = [
+			"content" => "project",
+			"format" => "json"
+		];
+
+		return $this->curlPOST($creds, $post_params);
+	}
 }
