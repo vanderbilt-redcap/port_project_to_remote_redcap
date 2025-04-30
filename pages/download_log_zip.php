@@ -1,6 +1,6 @@
 <?php
 
-[$pid, $zip_fp] = $module->dumpMetaData();
+[$pid, $zip_fp] = $module->dumpLogs();
 $zip_loc = stream_get_meta_data($zip_fp)['uri'];
 
 header("Content-type: application/zip");

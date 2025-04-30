@@ -61,7 +61,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $this->remote_file_repo_folder;
 	}
 
-    function dumpMetaData($pid = null) {
+    function dumpLogs($pid = null) {
         if ($pid === null) {
             $pid = $this->framework->getProjectId();
         }
@@ -732,12 +732,12 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function dumpMetadataToFileRepository($creds) {
-        [$pid, $zip_pointer] = $this->dumpMetaData();
+    function dumpLogsToFileRepository($creds = null) {
+        [$pid, $zip_pointer] = $this->dumpLogs();
         $zip_loc = stream_get_meta_data($zip_pointer)['uri'];
 
 				$cfile_name = date("Y-m-d_H.i.s") . "-$pid-logs.zip";
-        $cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
+				$cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
 
 				$post_params = [
 						"content" => "fileRepository",

@@ -37,8 +37,8 @@ case "port_file_repository":
 	$report_arr[$task] = $port_result;
 	break;
 case "store_logs":
-	$meta_conf = $module->dumpMetadataToFileRepository($creds);
-	$module->log("dumpMetadataToFileRepository");
+	$meta_conf = $module->dumpLogsToFileRepository($creds);
+	$module->log("dumpLogsToFileRepository");
 	$report_arr[$task] = $meta_conf;
 	if ($_POST['new_status']) {
 		// TODO: only address this after all actions are completed
@@ -53,6 +53,3 @@ case "get_remote_project_info":
 
 echo json_encode($report_arr);
 die;
-
-
-
