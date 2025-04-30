@@ -14,6 +14,11 @@
     ],
     "system-settings": [
         {
+            "name": "Warning Text",
+            "key": "warning_text",
+            "type": "text"
+        },
+        {
             "name": "Target Remote Server Credentials",
             "key": "system_target_remotes",
             "type": "sub_settings",
@@ -31,12 +36,7 @@
                     "key": "remote_super_token",
                     "type": "text"
                 }
-        ]},
-        {
-            "name": "Warning Text",
-            "key": "warning_text",
-            "type": "text"
-        }
+        ]}
     ],
     "project-settings": [
         {
