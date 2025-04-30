@@ -7,19 +7,18 @@ $(document).ready(function() {
 
 	const form = $("#crispi_admin_form")[0];
 	let remote_select = $("#remote_select")[0];
+	let source_select = $("#source_project_select")[0];
 
-  // populate dropdowns
-  let i = 0;
+	// populate dropdowns
+	let i = 0;
 	remote_list.forEach(e => {
-		console.log(e);
 		remote_select.innerHTML += `<option value=${i}>${e}</option>`;
 		i++;
 	});
 
-	let source_select = $("#source_project_select")[0];
-	source_project_list.forEach(e => {
-		source_select.innerHTML += `<option value=${e}>${e}</option>`;
-	});
+	for (const [pid, title] of Object.entries(source_project_list)) {
+		source_select.innerHTML += `<option value=${pid}>${title}</option>`;
+	}
 
 	$(form).on('submit', (event) => {
 		event.preventDefault();
