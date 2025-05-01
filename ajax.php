@@ -19,11 +19,14 @@ case "update_remote_project_design":
 	$report_arr[$task]["records_flushed"] = $records_flushed;
 	break;
 case "port_users":
+	// user roles may prevent the repeated import of users if they have a role
+	if($_POST["delete_user_roles"]) {
+		$report_arr[$task]["user_roles_deleted"] = $module->deleteUserRoles($creds);
+	}
 	$report_arr[$task]["users"] = json_decode($module->portUsers($creds), true);
 	$module->log("portUsers");
-	// user roles must be deleted first as the presence of a unique role id field causes a check for a matching role id in the target project
-	$report_arr[$task]["user_roles_deleted"] = $module->deleteUserRoles($creds);
 	$report_arr[$task]["user_roles_imported"] = json_decode($module->portUserRoles($creds), true);
+	$report_arr[$task]["user_roles_mapped"] = json_decode($module->portUserRoleAssignment($creds), true);
 	$module->log("portUserRoles");
 	break;
 case "port_records":

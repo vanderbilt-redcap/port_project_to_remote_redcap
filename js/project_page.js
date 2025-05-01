@@ -131,7 +131,7 @@ $(document).ready(function() {
 
       // HACK: anything more complex than a string is now just a string
 			if (typeof subtask_result === 'object' && subtask_result !== null) {
-				subtask_result = `<pre>${JSON.stringify(subtask_result)}</pre>`;
+				subtask_result = `<code>${JSON.stringify(subtask_result)}</code>`;
 			}
 
 			ul.append(`<li class="list-group-item">${k}: ${subtask_result}</li>`);

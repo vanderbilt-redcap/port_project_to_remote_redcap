@@ -15,15 +15,21 @@
 	<div class="form-check">
 	<input name="flush_records" class="form-check-input" type="checkbox" value="1" id="flush_records">
 	<label class="form-check-label" for="flush_records">
-	Flush records
+		Delete remote <b>records</b> before importing
 	</label>
 	</div>
 
 	<div class="form-check">
-	<!-- HACK: KYLE: default checked to make it easier -->
+	<input name="delete_user_roles" class="form-check-input" type="checkbox" value="1" id="flush_records">
+	<label class="form-check-label" for="delete_user_roles">
+		Delete remote <b>user roles</b> before importing
+	</label>
+	</div>
+
+	<div class="form-check">
 	<input name="retain_title" class="form-check-input" type="checkbox" value="1" id="retain_title" checked>
 	<label class="form-check-label" for="retain_title">
-	Retain project title
+	Retain remote project title
 	</label>
 	</div>
 

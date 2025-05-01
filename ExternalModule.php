@@ -8,6 +8,7 @@ use ZipArchive;
 
 require_once __DIR__ . '/src/CCFileRepository.php';
 require_once __DIR__ . '/src/SuperToken.php';
+require_once __DIR__ . '/src/CCUserManagement.php';
 
 class ExternalModule extends AbstractExternalModule {
 
@@ -853,51 +854,41 @@ class ExternalModule extends AbstractExternalModule {
 		];
 
 		$r1 =  json_decode($this->curlPOST($creds, $fetch_roles_post_params), 1);
-		$user_role_data = array_column($r1, "unique_role_name");
+		$user_role_data = array_column($r1, "unique_role_name") ?? [];
 
 		$delete_roles_post_params = [
 			"content" => "userRole",
 			"action" => "delete",
-			"roles" => "",
-			"format" => "json",
-			"returnFormat" => "json",
-			"data" => json_encode([$user_role_data])
+			"roles" => $user_role_data
 		];
+
+		$response = $this->curlPOST($creds, $delete_roles_post_params);
+
+		return $response;
 	}
 
 
-	function portUserRoles(array $creds) {
-		$r = [];
+	function portUserRoles(array $creds = null) {
 		global $mobile_app_enabled;
 
-		// user roles must be deleted first as the presence of a unique role id field causes a check for a matching role id in the target project
-
+		// NOTE: if a user role's unique name doesn't already exist in the target project the unique_role_name must be set to blank
 		$user_role_arr = \UserRights::getUserRolesDetails(PROJECT_ID, $mobile_app_enabled);
-		// add columns  to fit expectations of api endpoint
-		if (0) {
-			foreach ($user_role_arr as $user_role_idx => $user_role_data) {
 
-				$user_role_data["unique_role_name"] = "";
+		$CCUM = new CCUserManagement($this);
+		$CCUM->mapRemoteUserRoles();
 
-        $post_params = [
-					"content" => "userRole",
-					"format" => "json",
-					"returnFormat" => "json",
-					"data" => json_encode([$user_role_data])
-        ];
-
-        $r[$user_role_idx] =  $this->curlPOST($creds, $post_params);
-
-			}
-		} else {
-			$post_params = [
-				"content" => "userRole",
-				"format" => "json",
-				"returnFormat" => "json",
-				"data" => json_encode($user_role_arr)
-			];
-			$r =  json_decode($this->curlPOST($creds, $post_params), true);
+		// TODO: this could perhaps simply be done in the CCUM object
+		// TODO: issuing each user role individually may produce more granular reporting potentially significant overhead cost
+		foreach ($user_role_arr as $user_role_idx => &$user_role_data) {
+			$user_role_data["unique_role_name"] = $CCUM->translateLocalUrnToRemote($user_role_data["role_label"]);
 		}
+		$post_params = [
+			"content" => "userRole",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($user_role_arr)
+		];
+		$r =  json_decode($this->curlPOST($creds, $post_params), true);
 
 		return json_encode($r);
 	}
@@ -916,6 +907,28 @@ class ExternalModule extends AbstractExternalModule {
 
 		$r = $this->curlPOST($creds, $post_params);
 		return $r;
+	}
+
+
+	function portUserRoleAssignment($creds = null) {
+		// TODO: perhaps this object should be a class member
+		// re-running the mapping at this step is necessary anyway as it potentially changed during portUserRoles
+		$CCUM = new CCUserManagement($this);
+		$CCUM->mapRemoteUserRoles();
+
+		$user_role_assignments = \Project::getUserRoleRecords();
+		$remote_user_role_assignments = $CCUM->translateUserRoleAssignment($user_role_assignments);
+
+		$post_params = [
+			"content" => "userRoleMapping",
+			"action" => "import",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($remote_user_role_assignments)
+		];
+
+		$response = $this->curlPOST($creds, $post_params);
+		return $response;
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	//                            Utility Functions                            //
