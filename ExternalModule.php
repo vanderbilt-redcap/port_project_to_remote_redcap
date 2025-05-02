@@ -552,7 +552,11 @@ class ExternalModule extends AbstractExternalModule {
         $dr = $this->curlPOST($creds, $post_params);
 
         // NOTE: this assumes the remote project's primary key is identical to local
-        $del_recs = array_values(array_column(json_decode($dr, true), $this->Proj->table_pk));
+				$del_recs = array_unique(
+					array_values(
+						array_column(json_decode($dr, true), $this->Proj->table_pk)
+					)
+				);
 
 				if (empty($del_recs)) {
 					$response = "no records exist in target project";
