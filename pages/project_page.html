@@ -19,22 +19,35 @@
 	</label>
 	</div>
 
-	<div class="form-check">
-	<input name="delete_user_roles" class="form-check-input" type="checkbox" value="1" id="flush_records">
-	<label class="form-check-label" for="delete_user_roles">
-		Delete remote <b>user roles</b> before importing
-	</label>
+	<div class="form-group" id="subtask_options">
+
+		<div class="form-check">
+			<input name="retain_title" class="form-check-input" type="checkbox" value="1" id="retain_title" checked>
+			<label class="form-check-label" for="retain_title">
+				Retain remote project title
+			</label>
+		</div>
+
+		<div class="form-check">
+			<input name="flush_records" class="form-check-input" type="checkbox" value="1" id="flush_records">
+			<label class="form-check-label" for="flush_records">
+				Delete remote <b>records</b> before importing.
+				<!-- TODO: tooltip for this -->
+				<!-- Requires target project to have the same record_id variable name (usually the case). -->
+			</label>
+		</div>
+
+		<div class="form-check">
+			<input name="delete_user_roles" class="form-check-input" type="checkbox" value="1" id="delete_user_roles">
+			<label class="form-check-label" for="delete_user_roles">
+				Delete remote <b>user roles</b> before importing
+			</label>
+		</div>
+
 	</div>
 
-	<div class="form-check">
-	<input name="retain_title" class="form-check-input" type="checkbox" value="1" id="retain_title" checked>
-	<label class="form-check-label" for="retain_title">
-	Retain remote project title
-	</label>
-	</div>
 
-
-    <button type="submit" class="btn btn-primary">Transfer project</button>
+	<button type="submit" class="btn btn-primary">Transfer project</button>
 
 </form>
 

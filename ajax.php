@@ -13,10 +13,10 @@ switch ($task) {
 case "update_remote_project_design":
 	if ($_POST["flush_records"]) {
 		$records_flushed = $module->flushRemoteRecords($creds);
+		$report_arr[$task]["records_deleted"] = $records_flushed;
 	}
 	$project_design = json_decode($module->updateRemoteProjectDesign($creds, (bool) $_POST["retain_title"]), true);
 	$report_arr[$task] = $project_design;
-	$report_arr[$task]["records_flushed"] = $records_flushed;
 	break;
 case "port_users":
 	// user roles may prevent the repeated import of users if they have a role
@@ -30,9 +30,13 @@ case "port_users":
 	$module->log("portUserRoles");
 	break;
 case "port_records":
+	if ($_POST["flush_records"]) {
+		$records_flushed = $module->flushRemoteRecords($creds);
+		$report_arr[$task]["records_deleted"] = $records_flushed;
+	}
 	$records_pushed = $module->portRemoteRecords($creds);
 	$module->log("portRemoteRecords");
-	$report_arr[$task] = $records_pushed;
+	$report_arr[$task]["records_sent"] = $records_pushed;
 	break;
 case "port_file_repository":
 	// $module->createReservedFileRepoFolder();

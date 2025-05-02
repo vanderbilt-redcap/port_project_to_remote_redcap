@@ -673,6 +673,13 @@ class ExternalModule extends AbstractExternalModule {
 
 						if ($file_data["doc_id"] === "") { continue; }
 
+						if ($this->Proj->longitudinal) {
+							$file_data["redcap_event_name"] = $record["redcap_event_name"];
+							if ($record["redcap_repeat_instance"] !== "") {
+								$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
+							}
+						}
+
 						if ($record["redcap_repeat_instrument"] !== "") {
 							$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
 						}
@@ -684,57 +691,52 @@ class ExternalModule extends AbstractExternalModule {
 		}
 
 
-    function portFile(array $creds, array $file_data, $file_repo = false) {
-        // REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
-        $sql = "SELECT stored_name, mime_type, doc_name FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
-        $edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
+	function portFile(array $creds, array $file_data, $file_repo = false) {
+		// REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
+		$sql = "SELECT stored_name, mime_type, doc_name FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
+		$edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
 
-        $cfile = curl_file_create(EDOC_PATH . $edocs_tbl['stored_name'], $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
+		$cfile = curl_file_create(EDOC_PATH . $edocs_tbl['stored_name'], $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
 
-				if ($file_repo || ($file_data["validation"] == "signature")) {
+		if ($file_repo || ($file_data["validation"] == "signature")) {
 
-// TODO: migrate this ... somewhere useful, lol
-					// $remote_file_repo = json_decode($this->getRemoteFileRepository($creds), true);
+			if ($file_repo) {
+				// allow null for root-level items that come from the file repo
+				$remote_folder_id = $file_data["target_folder"];
+			} else {
+				// signatures cannot be imported to their fields, upload them to the file repo instead
+				// TODO: specific signature dir
+				// TODO: build a map of signature files to their fields
+				$remote_folder_id = ($file_data["target_folder"] ?? $this->getReservedFileRepoFolder());
+			}
+			$post_params = [
+				"content" => "fileRepository",
+				"action" => "import",
+				"file" => $cfile,
+				"returnFormat" => "json",
+				"folder_id" => $remote_folder_id
+			];
 
-					if ($file_repo) {
-						// allow null for root-level items that come from the file repo
-						$remote_folder_id = $file_data["target_folder"];
-					} else {
-						// TODO: specific signature dir
-						$remote_folder_id = ($file_data["target_folder"] ?? $this->getReservedFileRepoFolder());
-					}
-					$post_params = [
-						"content" => "fileRepository",
-						"action" => "import",
-						"file" => $cfile,
-						"returnFormat" => "json",
-						"folder_id" => $remote_folder_id
-					];
-				} else {
-					$post_params = [
-						"content" => "file",
-						"action" => "import",
-						"record" => $file_data['record_primary_key'],
-						"field" => $file_data['field_name'],
-						"file" => $cfile,
-						"returnFormat" => "json"
-					];
-				}
+		} else {
+			$post_params = [
+				"content" => "file",
+				"action" => "import",
+				"record" => $file_data['record_primary_key'],
+				"field" => $file_data['field_name'],
+				"file" => $cfile,
+				"returnFormat" => "json"
+			];
 
+			if ($this->Proj->longitudinal) { $post_params["event"] = $file_data["redcap_event_name"]; }
+			// handle repeats
+			if ($file_data["redcap_repeat_instance"]) {
+				$post_params["repeat_instance"] = $file_data["redcap_repeat_instance"];
+			}
+		}
 
-				// TODO: signatures cannot be imported to their fields, upload them to the file repo instead
-
-				// handle repeats
-        if (0) {
-            $post_params["event"] = $file_data["redcap_repeat_event"];
-        }
-        if ($file_data["redcap_repeat_instance"]) {
-            $post_params["repeat_instance"] = $file_data["redcap_repeat_instance"];
-        }
-
-        $response = $this->curlPOST($creds, $post_params, $is_file = true);
-        return $response;
-    }
+		$response = $this->curlPOST($creds, $post_params, true);
+		return $response;
+	}
 
 
     function dumpLogsToFileRepository($creds = null) {
