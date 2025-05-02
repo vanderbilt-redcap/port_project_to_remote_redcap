@@ -856,6 +856,10 @@ class ExternalModule extends AbstractExternalModule {
 		$r1 =  json_decode($this->curlPOST($creds, $fetch_roles_post_params), 1);
 		$user_role_data = array_column($r1, "unique_role_name") ?? [];
 
+		if ($user_role_data === []) {
+			return "No user roles in remote project.";
+		}
+
 		$delete_roles_post_params = [
 			"content" => "userRole",
 			"action" => "delete",
