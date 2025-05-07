@@ -1,12 +1,17 @@
 $(document).ready(function() {
 	const module = ExternalModules.PPtRR.ExternalModule;
+  let cur_prog = 0;
+  let bypass_design = false;
+
+  // TODO: allow individual toggling of these tasks, perhaps after initial run
+	const potential_task_list = ["update_remote_project_design", "port_records", "port_users", "port_dags", "port_file_repository", "store_logs"];
+	let task_list = potential_task_list;
+	let n_update_steps = task_list.length;
 
   const pptr_endpoint = module.tt("pptr_endpoint");
   const remote_list = module.tt("remote_list");
 
-  // TODO: allow individual toggling of these tasks, perhaps after initial run
-	const task_list = ["port_records", "port_users", "port_file_repository", "store_logs"];
-	let n_update_steps = task_list.length + 1;
+  buildAccordionTaskList();
 
 	let remote_select = $("#remote_select")[0];
   remote_list.forEach((e, idx) => {
@@ -20,26 +25,42 @@ $(document).ready(function() {
 	$(form).on('submit', (event) => {
 		event.preventDefault();
 
+		task_list = setTaskListFromForm();
+		n_update_steps = task_list.length;
+
+		let design_idx = task_list.indexOf("update_remote_project_design");
+		bypass_design = (design_idx === -1);
+
+		// remove from task list to avoid duplicate run; design must preempt all other tasks
+		if (!bypass_design) { task_list.splice(design_idx, 1); }
+
 		// prevent resubmitting while xfer is occurring
-		$($(form).children("button")[0]).prop("disabled", true);
+		const transfer_button = $($(form).children("button")[0]);
+		transfer_button.prop("disabled", true);
 
 		$("#status-updates").show();
-		initializeProgress("update_remote_project_design");
-    // TODO: allow override of task_list with checkboxes
-		// const task_list = ["port_file_repository"];
+		if (!bypass_design) {
+			initializeProgress("update_remote_project_design");
+		}
 		task_list.forEach((task) => {initializeProgress(task); });
 
-    // port project design, this must be done before records
-		portDesign().then(() => {
+		if (bypass_design) {
 			performTasks(task_list);
-		});
+		} else {
+			// this typically must be done before records as it updates the data dictionary
+			portDesign().then(() => {
+				performTasks(task_list);
+			});
 
-    // TODO: consider allowing additional submission attempts
+		}
+
+		// TODO: consider allowing additional submission attempts
 		// will need to reset the progress div to support this
-		$($(form).children("button")[0]).prop("disabled", false);
-    // must return false to prevent form actually submitting
-    return false;
-  });
+		transfer_button.prop("disabled", false);
+
+		// must return false to prevent form actually submitting
+		return false;
+	});
 
 	async function performTasks(task_list) {
 		const form = $("#crispi_form")[0];
@@ -59,8 +80,8 @@ $(document).ready(function() {
 					updateProgress(msg, n_update_steps);
 				}
 			});
-    }
-  }
+		}
+	}
 
 	async function portDesign() {
 		// must be done as async await with then as design has to match records
@@ -112,8 +133,10 @@ $(document).ready(function() {
 		// https://stackoverflow.com/a/52984049/7418735
 		if( response.indexOf("error") > -1 ) {
 			status_div.addClass("alert-danger");
+			status_div.prepend(`<svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill"/></svg>`);
 		} else {
 			status_div.addClass("alert-success");
+			status_div.prepend(`<svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Success:"><use xlink:href="#check-circle-fill"/></svg>`)
 		}
 
 		let ul = $("<ul class='list-group'></ul>");
@@ -140,9 +163,8 @@ $(document).ready(function() {
 		status_div.append(ul);
 	}
 
-  // TODO: add sections to bar, use response to colorize section
+	// TODO: add sections to bar, use response to colorize section
 	function updateProgressBar(n_steps = 4) {
-		let cur_prog = parseInt($(".progress-bar").attr("aria-valuenow"));
 		let increment = 100 / n_steps;
 		cur_prog += increment;
 
@@ -151,13 +173,19 @@ $(document).ready(function() {
 			.css('width', `${cur_prog}%`)
 			.attr("aria-valuenow", cur_prog);
 
-		if (cur_prog >= 100) {
-		element
-			.css('width', "100%")
-			.attr("aria-valuenow", 100)
-			.removeClass("progress-bar-animated")
-			.removeClass("progress-bar-striped")
-			.addClass("bg-success");
+		// console.log(cur_prog);
+
+		// HACK: workaround floating point issues accumulating in entire integers being missed
+		if (cur_prog >= 99) {
+			element
+				.css('width', "100%")
+				.attr("aria-valuenow", 100)
+				.removeClass("progress-bar-animated")
+				.removeClass("progress-bar-striped")
+				.addClass("bg-success");
+
+			// set up for another run without page reload
+			cur_prog = 0;
 		}
 	}
 
@@ -183,7 +211,6 @@ $(document).ready(function() {
 
 	async function setRemoteProjectInfo(idx, msg) {
 		let better_title = "something is wrong with this endpoint";
-    console.log(idx);
 
 		// TODO: does not update title for item 0
 		let target_option = $(`select#remote_select > option[value="${idx}"]`);
@@ -208,4 +235,189 @@ $(document).ready(function() {
 			);
 		}
 	}
+
+	// deprecated, used if accordion for subtask toggles are not used
+	// keeping this in case users desire the non-accordion UI
+	function buildTaskList() {
+
+		potential_task_list.forEach((task) => {
+
+			let task_checkbox = $(
+				$("#task_toggle_template_div")
+					.clone()
+			);
+
+			task_checkbox
+				.attr("id", `task_toggle_div-${task}`)
+				.show();
+
+			$(
+				task_checkbox
+					.find("input")[0]
+			)
+				.attr("id", `task_toggle-${task}`)
+				// .attr("name", `task_toggle-${task}`)
+				.attr("name", `${task}`)
+				.show();
+
+			$(
+				task_checkbox
+					.find("label")[0]
+			)
+				// .attr("for", `task_toggle-${task}`)
+				.attr("for", `task_toggle-${task}`)
+				.text(task);
+
+			$("#task_toggles").append(task_checkbox);
+		});
+	}
+
+	function buildAccordionTaskList() {
+		potential_task_list.forEach((task) => {
+			let task_checkbox = $(
+				$("#task_toggle_template_div")
+					.clone()
+			);
+
+			// set up main container
+			task_checkbox
+				.attr("id", `task_toggle_div-${task}`)
+				.show();
+
+			$(
+				task_checkbox
+					.find("input")[0]
+			)
+				.attr("id", `task_toggle-${task}`)
+				.attr("name", `${task}`)
+				.show();
+
+			$(
+				task_checkbox
+					.find("label")[0]
+			)
+				.attr("for", `task_toggle-${task}`)
+        .attr("data-bs-target", `#task_toggle_container-${task}-collapse`)
+				.text(task);
+
+			$(
+				task_checkbox
+			)
+				.on('click', function(e) {
+					uncheckChildCheckboxes(e);
+				})
+
+			$("#task_toggles").append(task_checkbox);
+
+			// set up sub container(s)
+			addTaskOptionToggles(task);
+		});
+
+  }
+
+	function setTaskListFromForm() {
+
+		const formData = new FormData(form);
+
+		const form_selections = {...Object.fromEntries(formData.entries())};
+
+    console.log("selected");
+    console.log(form_selections);
+
+    // let tasks_to_run = [];
+
+		const task_toggles = Object.keys(form_selections).filter((k) => {
+			// return k.indexOf("task_toggle") == 0;
+			return potential_task_list.includes(k);
+			// return (k !== "update_remote_project_design" && potential_task_list.includes(k));
+			// return
+		});
+		// tasks_to_run.splice(0, 1); // remove template item
+
+		console.log(task_toggles);
+		return task_toggles;
+		// return tasks_to_run;
+	}
+
+	function addTaskOptionToggles(task) {
+		const delete_remote_records_info = {
+			"name": "flush_records",
+			"label": "Delete remote records before importing",
+			"default": 0
+		};
+		const delete_remote_user_roles_info = {
+			"name": "delete_user_roles",
+			"label": "Delete remote user roles before importing",
+			"default": 0
+		};
+
+		const task_option_map = {
+			"update_remote_project_design": [
+				{
+					"name": "retain_title",
+					"label": "Retain remote project title",
+					"default": 1
+				},
+				delete_remote_records_info,
+				delete_remote_user_roles_info
+			],
+			"port_records": [delete_remote_records_info],
+			"port_users": [delete_remote_user_roles_info],
+			"port_dags": [],
+			"port_file_repository": [],
+			"store_logs": []
+		};
+
+		task_options = task_option_map[task] ?? [];
+
+		// TODO: if [] unclassify as accordion
+		task_options.forEach((task_option) => {
+
+			let task_options_element = $(
+				$("#template-task_toggle_collapse")
+					.clone()
+			);
+
+			task_options_element
+				.attr("id", "")
+			// .attr("data-bs-parent", `#task_toggle_div-${task}`);
+				.attr("data-bs-parent", `#task_toggle_container-${task}-collapse`);
+
+			$(
+				task_options_element
+				// .find("div")[0]
+			)
+				.attr("id", `task_toggle_container-${task}-collapse`);
+
+			let input_field = $(
+				task_options_element
+					.find("input")[0]
+			)
+			input_field
+				// .attr("id", `task_toggle-${task}-collapse`)
+				.attr("id", `${task_option['name']}`)
+				.attr("name", `${task_option['name']}`);
+			if (task_option["default"] === 1) {
+				input_field.attr("checked", "");
+			}
+
+			$(
+				task_options_element
+					.find("label")[0]
+			)
+				.attr("for", `task_toggle-${task}-collapse`)
+				.text(task_option['label']);
+
+			task_options_element.show();
+
+			$("#task_toggles").append(task_options_element);
+		});
+	}
+
+	function uncheckChildCheckboxes(parent_element) {
+    // TODO
+    return;
+		});
+	}
+
 });

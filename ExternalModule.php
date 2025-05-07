@@ -968,14 +968,14 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-    protected function includeCss(string $path) {
-        echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
-    }
+	public function includeCss(string $path): void {
+		echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
+	}
 
 
-    function includeJs(string $path) {
-        echo '<script src="' . $this->getUrl($path) . '"></script>';
-    }
+	public function includeJs(string $path): void {
+		echo '<script src="' . $this->getUrl($path) . '"></script>';
+	}
 
 
     function setJsSettings(array $settings) {

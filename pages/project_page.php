@@ -18,5 +18,6 @@ $module->setJsSettings($jsmo_settings);
 $warning_text = $module->framework->getSystemSetting("warning_text") ?? $default_warning_text;
 echo $warning_text;
 
+$module->includeCss("css/project_page_accordion.css");
 include("project_page.html");
 $module->includeJs("js/project_page.js");
