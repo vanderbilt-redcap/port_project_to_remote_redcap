@@ -56,7 +56,8 @@ $(document).ready(function() {
 
 		// TODO: consider allowing additional submission attempts
 		// will need to reset the progress div to support this
-		transfer_button.prop("disabled", false);
+		// NOTE: this can't be done here since everything else is async
+		// transfer_button.prop("disabled", false);
 
 		// must return false to prevent form actually submitting
 		return false;
@@ -321,11 +322,6 @@ $(document).ready(function() {
 
 		const form_selections = {...Object.fromEntries(formData.entries())};
 
-    console.log("selected");
-    console.log(form_selections);
-
-    // let tasks_to_run = [];
-
 		const task_toggles = Object.keys(form_selections).filter((k) => {
 			// return k.indexOf("task_toggle") == 0;
 			return potential_task_list.includes(k);
@@ -334,7 +330,6 @@ $(document).ready(function() {
 		});
 		// tasks_to_run.splice(0, 1); // remove template item
 
-		console.log(task_toggles);
 		return task_toggles;
 		// return tasks_to_run;
 	}
@@ -369,23 +364,35 @@ $(document).ready(function() {
 		};
 
 		task_options = task_option_map[task] ?? [];
+		if (task_options === []) { return; }
+
+		let task_options_container = $("#template-task_toggle_options")
+				.clone();
+
+		$(task_options_container)
+			.attr("id", `task_toggle_options-${task}`);
+
+		$("#task_toggles").append(task_options_container);
 
 		// TODO: if [] unclassify as accordion
 		task_options.forEach((task_option) => {
 
 			let task_options_element = $(
-				$("#template-task_toggle_collapse")
+				$(
+					$(task_options_container)
+						.find("#template-task_toggle_collapse")[0]
+				)
 					.clone()
 			);
 
 			task_options_element
 				.attr("id", "")
-			// .attr("data-bs-parent", `#task_toggle_div-${task}`);
 				.attr("data-bs-parent", `#task_toggle_container-${task}-collapse`);
 
+			// TODO: each sub-option has the same ID, breaking HTML rules
+			// however, this is currently required to fold the fold options when the task is toggled off
 			$(
 				task_options_element
-				// .find("div")[0]
 			)
 				.attr("id", `task_toggle_container-${task}-collapse`);
 
@@ -405,19 +412,29 @@ $(document).ready(function() {
 				task_options_element
 					.find("label")[0]
 			)
-				.attr("for", `task_toggle-${task}-collapse`)
+				.attr("for", `${task_option['name']}`)
 				.text(task_option['label']);
 
 			task_options_element.show();
 
-			$("#task_toggles").append(task_options_element);
+			// $("#task_toggles").append(task_options_element);
+			$(task_options_container).append(task_options_element);
 		});
 	}
 
 	function uncheckChildCheckboxes(parent_element) {
-    // TODO
-    return;
-		});
+		const task_name = $(parent_element.delegateTarget).attr("id").substring(length("task_toggle_div-"));
+		const target_element = $(`#task_toggle_options-${task_name}`);
+		for (const [k, e] of Object.entries($(target_element.find("input[type='checkbox']")))) {
+			try {
+				$(e)
+					.prop("checked", false);
+			} catch (err) {
+				// errors arise if target element isn't a checkbox
+				// this is irrelevant, so the error is ignored
+			}
+		}
+		return;
 	}
 
 });

@@ -58,7 +58,8 @@ case "get_remote_project_info":
 }
 
 if ($perform_log) {
-	$module->log($task, json_encode($report_arr));
+	// HACK: fw log doesn't like n>2 dimensional arrays :(
+	$module->log($task, ["report_json" => json_encode($report_arr)]);
 }
 echo json_encode($report_arr);
 die;
