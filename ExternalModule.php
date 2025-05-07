@@ -43,7 +43,7 @@ class ExternalModule extends AbstractExternalModule {
 
 	function getReservedFileRepoFolder() {
 		if (is_null($this->remote_file_repo_folder)) {
-			$remote_file_repo = json_decode($this->getRemoteFileRepository(null), true);
+			$remote_file_repo = json_decode($this->getRemoteFileRepositoryDirectory(null), true);
 
 			$found = false;
 			foreach($remote_file_repo as $dir) {
@@ -828,12 +828,13 @@ class ExternalModule extends AbstractExternalModule {
 			return json_encode($return_item);
     }
 
-	function getRemoteFileRepository($creds = null) {
+	function getRemoteFileRepositoryDirectory($creds = null, $folder_id = null) {
 		// TODO: check for extant file structure
 		$post_params = [
 			"content" => "fileRepository",
 			"action" => "list",
-			"format" => "json"
+			"format" => "json",
+			"folder_id" => $folder_id
 		];
 
 		$r =  $this->curlPOST($creds, $post_params);

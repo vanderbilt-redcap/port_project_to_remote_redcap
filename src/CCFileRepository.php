@@ -5,6 +5,12 @@ namespace PPtRR\ExternalModule;
 class CCFileRepository {
 
 	private $module;
+	/*
+	 * File Repo directory structure is a stored in the database as a singly linked list wherein nodes refer to their parent rather than the typical discrete math toy exercises where parents refer to children.
+	 *  This class' data structure will have an additional dimension for equivalent remote folder information (i.e. remote instance ID and the parent when applicable).
+	 *  If you're debugging this, it may be easiest to think of each node of in the directory tree as having an additional plane for the remote instance.
+	 *  The tree should be identical when viewed from either normal axis.
+	 */
 	private $local_file_repo = [];
 
 	public function __construct($module) {
@@ -62,23 +68,39 @@ class CCFileRepository {
 	}
 
 	function createRemoteFolders() {
+		// NOTE: this function can lead to contents of the file repo being duplicated on every run if there are any child directories
+		// TODO: create tree structure to allow mapping of remote structure to local by name to avoid duplication if remote repo is not empty
+		// NOTE: for users to delete a dir in the UI, it must contain no files but can contain empty directories
+		// TODO: child directories are not marked as deleted when a parent directory is deleted
+		// asking the API for contents of a deleted folder ID will return nothing, but (n+1)'th nested children will happily return their own children
 		$this->mapRemoteToLocal();
 		foreach($this->local_file_repo as &$local_folder) {
 			$response = $this->createRemoteFolder($local_folder);
 
-	// TODO: is it possible to hit this condition?
-	if ($response === "already_mapped") {
-	continue;
-}
-	$local_folder["remote_info"] = $response;
+			// TODO: is it possible to hit this condition?
+			if ($response === "already_mapped") { continue; }
+			$local_folder["remote_info"] = $response;
 		}
 	}
 
-	function createRemoteFolder($input_folder) {
+	function createRemoteFolder(&$input_folder) {
 
-	if ($input_folder["remote_info"]["folder_id"]) {
-	return $input_folder["remote_info"];
-}
+		if ($input_folder["remote_info"]["folder_id"]) {
+			return $input_folder["remote_info"];
+		}
+
+
+		$local_parent_folder_id = array_column($this->local_file_repo, "folder_id");
+
+		// array_find($foo, fn($i) => $i === $local_parent_folder_id); // PHP 8.4 :(
+		$parent_folder_idx = array_search($input_folder["parent_folder_id"], $local_parent_folder_id) ?? false;
+		if ($parent_folder_idx !== false) {
+			// TODO: ensure parent is made first (this might not be an issue? if it is may want to store each node's depth)
+			$remote_parent_folder_id = $this->local_file_repo[$parent_folder_idx]["remote_info"]["folder_id"];
+			$input_folder["remote_info"] = [
+				"parent_folder" => $remote_parent_folder_id
+			];
+		}
 
 		$post_params = [
 			"content" => "fileRepository",
@@ -86,7 +108,6 @@ class CCFileRepository {
 			"format" => "json",
 			"name" => $input_folder["name"],
 			// TODO: make sure support nested folders properly during tree recreation, protect against mismatch
-			// "folder_id" => ($input_folder["remote_info"]["parent_folder"] ?? $input_folder["folder_id"]) ?? null,
 			"folder_id" => ($input_folder["remote_info"]["parent_folder"] ?? null),
 			// TODO: these must be built from a local:remote map with name as an intermediary
 			// "dag_id" => $input_folder["dag_id"],
@@ -100,10 +121,9 @@ class CCFileRepository {
 
 		if (!is_null($response["error"])) {
 			$err = $response["error"];
-	// NOTE: this shouldn't actually happen
+			// NOTE: this shouldn't actually happen
 			if(str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
 				// find remote folder id with this name
-				$foo = true;
 				$this->mapRemoteToLocal();
 
 				return "already_mapped";
@@ -111,7 +131,7 @@ class CCFileRepository {
 				// TODO: handle other errors
 			}
 		} else {
-// TODO: is this ever more than a single array?
+			// TODO: is this ever more than a single array?
 			$response = $response[0];
 		}
 
@@ -119,7 +139,7 @@ class CCFileRepository {
 	}
 
 	function mapRemoteToLocal() {
-		$remote_file_repo = json_decode($this->module->getRemoteFileRepository(), true);
+		$remote_file_repo = json_decode($this->module->getRemoteFileRepositoryDirectory(), true);
 
 		foreach($this->local_file_repo as $_ => &$local_folder) {
 			foreach($remote_file_repo as $_ => $remote_folder) {
