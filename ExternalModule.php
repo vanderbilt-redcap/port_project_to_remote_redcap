@@ -98,6 +98,8 @@ class ExternalModule extends AbstractExternalModule {
 				// TODO: event_id is still ambiguous, field comments will have partial information loss
 				// TODO: create compound table from redcap_events_metadata, redcap_arms, redcap_projects
 
+				// TODO: alerts and alerts_sent
+
         $sql_arrs = [
             "redcap_projects" => $project_sql,
             "redcap_external_module_settings" => $em_sql,
@@ -141,18 +143,6 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    private function queryWrapper(string $sql, array $params): array {
-        $result = $this->framework->query($sql, $params);
-
-        $accumulator = [];
-        while ($row = $result->fetch_assoc()) {
-            $accumulator[] = $row;
-        }
-
-        return $accumulator;
-    }
-
-
     /*
      * @param array $arr Array of associative arrays in the format [["column_name" => "value"]]; passed by reference to save on memory
      */
@@ -187,72 +177,23 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function getCredentials($i = 0, $is_system = false) {
-        $creds = [];
+	function getCredentials($idx = 0) {
+		$creds = [];
 
-        $is_system = 0;
+		$project_settings = $this->framework->getProjectSettings();
+		$parts = ["remote_api_uri", "remote_api_token"];
 
-        if ($is_system) {
-            $system_settings = $this->framework->getSystemSettings();
+		foreach ($parts as $part) {
+			$creds[$part] = $project_settings[$part][$idx];
+		}
 
-            $parts = ["super_remote_api_uri", "remote_super_token"];
+		// this function is equivalent to module instantiation for Proj object purposes
+		$this->Proj = new \Project();
 
-            foreach ($parts as $part) {
-                $creds[$part] = $system_settings[$part]["system_value"][$i];
-            }
+		$this->setCreds($creds);
 
-            $creds["remote_api_uri"] = $creds["super_remote_api_uri"];
-            $creds["remote_api_token"] = $creds["remote_super_token"];
-        } else {
-            $project_settings = $this->framework->getProjectSettings();
-            $parts = ["remote_api_uri", "remote_api_token"];
-
-            foreach ($parts as $part) {
-                $creds[$part] = $project_settings[$part][$i];
-            }
-        }
-
-        // this function is equivalent to module instantiation for Proj object purposes
-        $this->Proj = new \Project();
-
-				$this->setCreds($creds);
-
-        return $creds;
-    }
-
-
-    function createRemoteProject($pid = null) {
-        if ($pid === null) { $pid = $this->framework->getProjectId(); }
-
-        $creds = $this->getCredentials();
-
-        $data = [];
-
-        $proj = $this->framework->getProject($pid);
-
-        $data["project_title"] = $proj->getTitle();
-
-        $fields = "project_title, purpose, purpose_other, project_notes, is_longitudinal, surveys_enabled, record_autonumbering_enabled";
-        $fields = "app_title, purpose, purpose_other, project_note, is_longitudinal, surveys_enabled, record_autonumbering_enabled";
-        $fields = "app_title, purpose, purpose_other, project_note, surveys_enabled";
-
-        $res = $this->queryWrapper("SELECT {$fields} FROM redcap_projects WHERE project_id = ?", [$pid])[0];
-
-        $data["project_title"] = $res["app_title"];
-        $data["project_notes"] = $res["project_note"];
-        $data["purpose"] = $res["purpose"];
-        $data["purpose_other"] = $res["purpose_other"];
-        $data["surveys_enabled"] = $res["surveys_enabled"];
-
-        $post_params = [
-            "content" => "project",
-            "format" => "json",
-            "returnFormat" => "json",
-            "data" => [json_encode([0 => $data])]
-        ];
-
-        return $this->curlPOST($creds, $post_params);
-    }
+		return $creds;
+	}
 
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -944,7 +885,7 @@ class ExternalModule extends AbstractExternalModule {
 	/////////////////////////////////////////////////////////////////////////////
 	//                            Utility Functions                            //
 	/////////////////////////////////////////////////////////////////////////////
-    function curlPOST($creds, $post_params, $is_file = false, $is_xml = false) {
+    function curlPOST($creds, $post_params, $is_file = false) {
 			if (is_null($creds)) {
 				$creds = $this->creds;
 			}
@@ -981,6 +922,18 @@ class ExternalModule extends AbstractExternalModule {
         curl_close($ch);
         return $server_output;
     }
+
+
+	private function queryWrapper(string $sql, array $params): array {
+			$result = $this->framework->query($sql, $params);
+
+			$accumulator = [];
+			while ($row = $result->fetch_assoc()) {
+				$accumulator[] = $row;
+			}
+
+			return $accumulator;
+		}
 
 
 	function tabulateFileFields($source_project_id = null) {
