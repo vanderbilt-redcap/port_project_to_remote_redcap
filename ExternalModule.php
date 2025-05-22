@@ -632,10 +632,23 @@ class ExternalModule extends AbstractExternalModule {
 
 	function portFile(array $creds, array $file_data, $file_repo = false) {
 		// REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
-		$sql = "SELECT stored_name, mime_type, doc_name FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
+		$sql = "SELECT stored_name, mime_type, doc_name, project_id FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
 		$edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
 
-		$cfile = curl_file_create(EDOC_PATH . $edocs_tbl['stored_name'], $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
+		// TODO: detect cloud storage and tell user this is unlikely to work
+		// TODO: actually support cloud storage?
+
+		$file_real_path = EDOC_PATH . $edocs_tbl['stored_name'];
+		if (!file_exists($file_real_path)) {
+			// system may have been configured to put edocs in specific folders for PIDs
+			$file_real_path = EDOC_PATH . "pid{$edocs_tbl['project_id']}" . DS . "{$edocs_tbl['stored_name']}";
+			if (!file_exists($file_real_path)) {
+				// TODO; throw error, make sure it's caught in portFileFields and file repo functions without preventing later xfer attempts
+				return false;
+			}
+		}
+
+		$cfile = curl_file_create($file_real_path, $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
 
 		if ($file_repo || ($file_data["validation"] == "signature")) {
 
