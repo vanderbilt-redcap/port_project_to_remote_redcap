@@ -19,7 +19,15 @@ class SuperToken
 
 	public function main($remote_index): bool {
 		$this->setSuperCredentials($remote_index);
-		$creation_response = $this->createProjectWithXML();
+
+		try {
+			$this->createProjectWithXML();
+		} catch (\Exception $ex) {
+			header('Content-Type: application/json; charset=UTF-8');
+			header(http_response_code(500));
+			$response = ["error" => $ex->getMessage()];
+			die(json_encode($response));
+		}
 
 		$status = $this->addToLocalProjectSettings();
 		return $status;
@@ -95,11 +103,10 @@ class SuperToken
 			$post_params
 		);
 
-		// TODO: deliver error to frontend, direct frontend to make link to recent errors
 		// TODO: consider deleting this idx from sys settings
+		// TODO: log this at the module level?
 		if (str_contains($response, "error")) {
-			$err_response = json_decode($response, true);
-			throw new \ErrorException("Remote API Super Token is invalid!");
+			throw new \Exception($response);
 		}
 
 		$this->remote_project_token = $response;
@@ -142,6 +149,5 @@ class SuperToken
 	public function activateThisModuleOnProject(): void {
 		$this->module->enableModule($this->source_project_id);
 	}
-
 
 }

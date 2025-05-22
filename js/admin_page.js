@@ -16,6 +16,8 @@ $(document).ready(function() {
 		i++;
 	});
 
+	// TODO: properly rename artifacts from project context
+	// TODO: make a unified class/lib for shared functionality between admin and project
 	for (const [pid, title] of Object.entries(source_project_list)) {
 		source_select.innerHTML += `<option value=${pid}>${title}</option>`;
 	}
@@ -38,10 +40,33 @@ $(document).ready(function() {
 				// pass all form items
 				...Object.fromEntries(formData.entries())
 			},
+			error: (jqxhr, status, err) => {
+				reportError(jqxhr);
+			},
 			success: (msg) => {
 				setProjectPageLink(entries);
 			}
 		});
+	}
+
+	function reportError(jqxhr) {
+		let response = jqxhr.responseJSON;
+
+		let status_div = $("#status-update-alert-template").clone();
+		status_div.attr("id", "status-update");
+		status_div
+			.addClass("alert-danger")
+			.text(response.error)
+			.show();
+
+		$("#status-updates")
+			.append(status_div)
+			.show();
+
+		$("#port-project-progress-bar")
+			.removeClass("progress-bar-striped")
+			.addClass("bg-danger")
+			.attr("style", "width: 100%");
 	}
 
 	function setProjectPageLink(entries) {
