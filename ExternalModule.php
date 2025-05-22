@@ -236,8 +236,6 @@ class ExternalModule extends AbstractExternalModule {
 			"repeats" => $repeats
 		];
 
-		$this->framework->log("updateRemoteProjectDesign");
-
 		return json_encode($report);
 	}
 
@@ -881,6 +879,56 @@ class ExternalModule extends AbstractExternalModule {
 
 		$response = $this->curlPOST($creds, $post_params);
 		return $response;
+	}
+
+
+
+	// DAGS /////////////////////////////////////////////////////////////////////
+
+	function portDAGs($creds) {
+		// TODO: this results in duplicate dag creation, should export dags first
+		// NOTE: this is handled by XML, as is DAG membership
+
+		$dags = \Project::getDAGRecords();
+
+		array_walk($dags,
+							 function (&$dag) {
+								 // unset($dag['unique_group_name']);
+								 $dag['unique_group_name'] = "";
+								 unset($dag['data_access_group_id']);
+							 }
+		);
+
+
+		$post_params = [
+			"content" => "dag",
+			"action" => "import",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($dags)
+		];
+
+		$r = $this->curlPOST($creds, $post_params);
+		return $r;
+	}
+
+
+	function portDAGMapping($creds) {
+		// NOTE: this is handled by super XML project creation
+		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
+
+		$dag_mapping = \Project::getUserDagRecords(PROJECT_ID);
+
+		$post_params = [
+			"content" => "userDagMapping",
+			"action" => "import",
+			"format" => "json",
+			"returnFormat" => "json",
+			"data" => json_encode($dag_mapping)
+		];
+
+		$r = $this->curlPOST($creds, $post_params);
+		return $r;
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	//                            Utility Functions                            //
