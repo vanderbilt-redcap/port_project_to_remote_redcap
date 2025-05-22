@@ -637,6 +637,10 @@ class ExternalModule extends AbstractExternalModule {
 
 		$cfile = curl_file_create(EDOC_PATH . $edocs_tbl['stored_name'], $edocs_tbl['mime_type'], $edocs_tbl['doc_name']);
 
+		if (!file_exists($cfile->name)) {
+			// TODO: throw error and expose to user
+		}
+
 		if ($file_repo || ($file_data["validation"] == "signature")) {
 
 			if ($file_repo) {
@@ -706,6 +710,7 @@ class ExternalModule extends AbstractExternalModule {
 			// getFolderList is almost ok, but getFileList returns an array of html-formatted descriptive information
 
 			$file_list = [];
+			$errlist = [];
 
 			$CCFR = new CCFileRepository($this);
 
@@ -742,7 +747,16 @@ class ExternalModule extends AbstractExternalModule {
 						"doc_id" => $file_id,
 						"target_folder" => $remote_folder_id
 					];
-					$port_response = $this->portFile($creds, $file_data, true);
+					$port_response = json_decode($this->portFile($creds, $file_data, true), true);
+					if(isset($port_response["error"])) {
+						// TODO get this to the user
+						$err_arr = [
+							"portFile_response" => $port_response,
+							"file_data" => $file_data
+						];
+						$errlist[] = $err_arr;
+						continue;
+					}
 					$folder_info["files_transferred"]++;
 					$total_files_transferred++;
 				}
@@ -761,11 +775,12 @@ class ExternalModule extends AbstractExternalModule {
 
 			$return_item = array_merge(
 				["total_items_transferred" => $total_files_transferred],
-					$out
+					$out,
+				["errors" => $errlist]
 			);
 
 			return json_encode($return_item);
-    }
+		}
 
 	function getRemoteFileRepositoryDirectory($creds = null, $folder_id = null) {
 		// TODO: check for extant file structure
@@ -1013,6 +1028,11 @@ class ExternalModule extends AbstractExternalModule {
 		}
 
 		return $dd;
+	}
+
+	public function getFileFields() {
+		$this->tabulateFileFields(PROJECT_ID);
+		return $this->file_fields;
 	}
 
 

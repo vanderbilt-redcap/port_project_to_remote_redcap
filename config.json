@@ -74,6 +74,12 @@
                 "show-header-and-footer": true
             },
             {
+                "name": "PPtRR File Debug",
+                "icon": "fas fa-file-zipper",
+                "url": "pages/debug_page.php",
+                "show-header-and-footer": true
+            },
+            {
                 "name": "Download Log Dump Zip",
                 "icon": "fas fa-file-zipper",
                 "url": "pages/download_log_zip.php",
