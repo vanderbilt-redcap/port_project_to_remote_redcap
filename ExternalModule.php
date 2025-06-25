@@ -564,7 +564,8 @@ class ExternalModule extends AbstractExternalModule {
 		$get_data_params = [
 			"project_id" => $source_project_id,
 			"records" => $records,
-			"return_format" => "json"
+			"return_format" => "json",
+			"returnBlankForGrayFormStatus" => true
 		];
 
 		$rc_data = REDCap::getData($get_data_params);
