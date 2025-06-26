@@ -34,7 +34,8 @@ case "port_records":
 		$records_flushed = $module->flushRemoteRecords($creds);
 		$report_arr[$task]["records_deleted"] = $records_flushed;
 	}
-	$records_pushed = $module->portRemoteRecords($creds);
+	$port_file_fields = (bool) $_POST["port_file_fields"];
+	$records_pushed = $module->portRemoteRecords($creds, null, $port_file_fields);
 	$report_arr[$task]["records_sent"] = $records_pushed;
 	break;
 case "port_file_repository":

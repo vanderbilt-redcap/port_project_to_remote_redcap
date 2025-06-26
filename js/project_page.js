@@ -345,6 +345,11 @@ $(document).ready(function() {
 			"label": "Delete remote user roles before importing",
 			"default": 0
 		};
+		const port_file_fields = {
+			"name": "port_file_fields",
+			"label": "Port file fields",
+			"default": 1
+		};
 
 		const task_option_map = {
 			"update_remote_project_design": [
@@ -356,7 +361,7 @@ $(document).ready(function() {
 				delete_remote_records_info,
 				delete_remote_user_roles_info
 			],
-			"port_records": [delete_remote_records_info],
+			"port_records": [delete_remote_records_info, port_file_fields],
 			"port_users": [delete_remote_user_roles_info],
 			"port_dags": [],
 			"port_file_repository": [],

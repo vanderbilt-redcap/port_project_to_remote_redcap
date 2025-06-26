@@ -516,7 +516,7 @@ class ExternalModule extends AbstractExternalModule {
     }
 
 
-    function portRemoteRecords($creds, $source_project_id = null) {
+	function portRemoteRecords($creds, $source_project_id = null, $port_file_fields = true) {
 			// this batch size identified from TIN
 			$batch_size = 10;
 			$response = [];
@@ -534,7 +534,7 @@ class ExternalModule extends AbstractExternalModule {
 			//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
 			$batch_idx = 1;
 			foreach($record_batches as $record_batch) {
-				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id);
+				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
 			}
 
         return $response;
@@ -559,7 +559,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $rc_records;
 	}
 
-	private function portRecordList(array $creds,  $records, $source_project_id = null) {
+	private function portRecordList(array $creds,  $records, $source_project_id = null, $port_file_fields = true) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -583,8 +583,9 @@ class ExternalModule extends AbstractExternalModule {
 
 		// port edocs individually
 		// NOTE: as per the API documentation this is NOT suitable for signatures
-		// TODO: handle repeat events and instances
-		$this->portFileFields($creds, $rc_data);
+		if ($port_file_fields) {
+			$this->portFileFields($creds, $rc_data);
+		}
 		return $response;
 	}
 
