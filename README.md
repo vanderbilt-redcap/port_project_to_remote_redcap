@@ -55,17 +55,22 @@ When you are ready to port the project, navigate to the "Copy Project to Remote 
 
 Select the appropriate **Target Server API URI** from the dropdown menu and specify any additional options desired.
 
-- **Flush records**: check this to delete any records in the remote project before starting the transfer process. Typically not needed, but potentially useful if project changes are made and additional data was collected after an initial transfer has been made.
-- **Retain Project title**: check this to retain the target project's title. If created with a Super API token, the target project will be titled "PPtRR TARGET -- \<source project ID\> -- \<source project title\>".
 
 Click the "Transfer project" button to initiate the transfer. Statuses for each step will appear and report their progress.
 - `update_remote_project_design`: porting fields, instruments, arm/events mapping and repeating status. This task must complete before record porting is possible.
+  - **Retain Project title**: check this to retain the target project's title. If created with a Super API token, the target project will be titled "PPtRR TARGET -- \<source project ID\> -- \<source project title\>".
+  - **Delete remote records before importing**: check this to delete any records in the remote project before starting the transfer process. Typically not needed, but potentially useful if project changes are made and additional data was collected after an initial transfer has been made.
+  - **Delete remote user roles before importing**: Potentially needed to allow re-import of users if any have a role in the target project.
 - `port_users`: Users with access to the project and roles.
+  - **Delete remote user roles before importing**: Potentially needed to allow re-import of users if any have a role in the target project.
   - Users do _not_ need to exist on the target server at the time of porting.
   - Any user roles set in the target project will be deleted and replaced with those of the source project.
 - `port_records`: Records are ported in batches of 10 to prevent issues with hardware limitations.
+  - **Delete remote records before importing**: check this to delete any records in the remote project before starting the transfer process. Typically not needed, but potentially useful if project changes are made and additional data was collected after an initial transfer has been made.
+  - **Port file fields**: port the contents of file upload fields (except signatures). This may be time intensive in projects with a large number of files, toggleable to same time on repeat runs.
 - `port_file_repository`: All contents of the source project's file repository, as well as directory structure will be ported.
   - The module will create a reserved folder for itself in the target project titled "PPtRR_reserved_folder".
+  - Running this repeatedly will result in duplicating files and directories.
 - `store_logs`: Create a zip file containing logs relevant to the source project. This zip file will timestamped and stored in the target project's reserved file repository as <YYYY-MM-DD_HH.MM.SS-logs.zip>. All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`.
   - `redcap_projects.csv`
   - `redcap_log_event.csv`
@@ -82,6 +87,8 @@ While migration of file upload fields are supported, signature fields **will not
 
 Log records associated with the project are collated locally in temporary files prior to being transferred to the remote instance; it's possible you may be limited by your instance's hardware.  
 Additionally, you may be limited by the remote server's file upload settings (by default, the File Repository has "unlimited" capacity but individual files are limited to 128MB).
+
+If the source project imposed data quality rules _after_ collecting data that _doesn't_ meet those data quality rules, those data will _not_ be transferred to the target project.
 
 Logs are **not** injected into the target project's relevant tables, this may alter expected behavior of some external modules.[^em_module_logs_table_as_db]
 
