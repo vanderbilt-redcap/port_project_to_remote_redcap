@@ -21,6 +21,10 @@ $(document).ready(function() {
 
 	const form = $("#crispi_form")[0];
 
+	$("input#port_record_range").click((el) => {
+		exposeRecordRange(el);
+	});
+
 	// NOTE: bugs in this section will result in a redirect due to altering the form
 	$(form).on('submit', (event) => {
 		event.preventDefault();
@@ -351,6 +355,12 @@ $(document).ready(function() {
 			"default": 1
 		};
 
+		const port_record_range = {
+			"name": "port_record_range",
+			"label": "Port record range",
+			"default": 0
+		};
+
 		const task_option_map = {
 			"update_remote_project_design": [
 				{
@@ -361,7 +371,7 @@ $(document).ready(function() {
 				delete_remote_records_info,
 				delete_remote_user_roles_info
 			],
-			"port_records": [delete_remote_records_info, port_file_fields],
+			"port_records": [delete_remote_records_info, port_file_fields, port_record_range],
 			"port_users": [delete_remote_user_roles_info],
 			"port_dags": [],
 			"port_file_repository": [],
@@ -441,5 +451,17 @@ $(document).ready(function() {
 		}
 		return;
 	}
+
+function exposeRecordRange(el) {
+	let v = $("input#port_record_range").val()
+	let target = $("#record_range_div");
+
+  // TODO: toggle does not actually alter the value so this is unreliable
+	if (v == 1) {
+		target.show();
+	} else {
+		target.hide();
+	}
+}
 
 });

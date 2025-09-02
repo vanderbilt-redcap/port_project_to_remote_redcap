@@ -537,8 +537,9 @@ class ExternalModule extends AbstractExternalModule {
 				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
 			}
 
-        return $response;
-    }
+			return $response;
+	}
+
 
 	private function getAllRecordPks($source_project_id = null) {
 
@@ -559,7 +560,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $rc_records;
 	}
 
-	private function portRecordList(array $creds,  $records, $source_project_id = null, $port_file_fields = true) {
+	public function portRecordList(array $creds,  array $records, $source_project_id = null, $port_file_fields = true) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -589,6 +590,21 @@ class ExternalModule extends AbstractExternalModule {
 		return $response;
 	}
 
+
+	public function getRecordRange($start_record, $end_record) {
+		$record_list = [];
+
+		$all_record_ids = $this->getAllRecordPks();
+		$start_idx = array_search($start_record, $all_record_ids, true);
+		$end_idx = array_search($end_record, $all_record_ids, true);
+		# add 1 to make inclusive on end of range
+		$end_delta = (($end_idx !== false) ? ($end_idx - count($all_record_ids) + 1) : null);
+		$record_list = array_slice($all_record_ids,
+															 $start_idx,
+															 $end_delta
+		);
+		return $record_list;
+	}
 	///////////////////////////////////////////////////////////////////////////////
 	//                                  File operations                          //
 	///////////////////////////////////////////////////////////////////////////////
