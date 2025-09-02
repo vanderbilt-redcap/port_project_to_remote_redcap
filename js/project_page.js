@@ -231,9 +231,9 @@ $(document).ready(function() {
 			}
 
 		} catch(error) {
-      console.log(error);
+			// console.log(error);
 			console.log(`${idx} is not json`);
-			console.log(msg);
+			// console.log(msg);
 		} finally {
 			target_option.text(
 				`${target_option.text()} :: ${better_title}`
@@ -452,16 +452,39 @@ $(document).ready(function() {
 		return;
 	}
 
-function exposeRecordRange(el) {
-	let v = $("input#port_record_range").val()
-	let target = $("#record_range_div");
+	async function exposeRecordRange(el) {
+		let v = $("input#port_record_range").val()
+		let target = $("#record_range_div");
+		const task_name = "get_remote_project_record_ids";
 
-  // TODO: toggle does not actually alter the value so this is unreliable
-	if (v == 1) {
-		target.show();
-	} else {
-		target.hide();
+		// TODO: toggle does not actually alter the value so this is unreliable
+		if (v == 1) {
+			target.show();
+		} else {
+			target.hide();
+		}
+
+
+		await $.ajax({
+			type: "POST",
+			url: pptr_endpoint,
+			data: {
+				"task": task_name,
+				"redcap_csrf_token": redcap_csrf_token
+				// pass all form items
+				// ...Object.fromEntries(formData.entries())
+			},
+			success: (msg) => {
+				let parsed = JSON.parse(msg);
+
+				let resp_arr = parsed[task_name]["remote_project_record_ids"];
+				let range_el = $("#record_range_on_remote");
+
+				range_el.html(
+					`Target project current records [lowest, highest]: <b>[${resp_arr['min']}, ${resp_arr['max']}]</b>`
+				);
+			}
+		});
 	}
-}
 
 });

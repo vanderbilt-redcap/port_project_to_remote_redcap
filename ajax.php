@@ -55,16 +55,21 @@ case "store_logs":
 		// TODO: only address this after all actions are completed
 	}
 	break;
-case "get_remote_project_info":
-	$perform_log = false; // this is used solely to add context to the project page dropdown menu
-	$report_arr[$task]["remote_project_info"] = $module->getRemoteProjectInfo($creds);
-	break;
 case "port_dags":
 	$report_arr[$task]["dags_ported"] = $module->portDAGs($creds);
 	$report_arr[$task]["dags_mapped"] = $module->portDAGMapping($creds);
 	break;
 	default:
 		$report_arr["error"] = "Not a valid action: {$task}";
+// Utils for data display
+case "get_remote_project_info":
+	$perform_log = false; // this is used solely to add context to the project page dropdown menu
+	$report_arr[$task]["remote_project_info"] = $module->getRemoteProjectInfo($creds);
+	break;
+case "get_remote_project_record_ids":
+	$perform_log = false; // this is used solely to add context to the project page dropdown menu
+	$report_arr[$task]["remote_project_record_ids"] = $module->getRemoteProjectRecordList($creds);
+	break;
 }
 
 if ($perform_log) {

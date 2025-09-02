@@ -1074,4 +1074,32 @@ class ExternalModule extends AbstractExternalModule {
 
 		return $this->curlPOST($creds, $post_params);
 	}
+
+
+	public function getRemoteProjectRecordList($creds = null) {
+		if (is_null($creds)) {
+			$creds = $this->creds;
+		}
+
+		$post_params = [
+			"content" => "record",
+			"type" => "flat",
+			"format" => "json",
+			"fields" => $this->Proj->table_pk
+		];
+
+		$response = json_decode($this->curlPOST($creds, $post_params), true);
+
+		try {
+			// TODO: what if pk is different on source and target?
+			$result = [
+				"min" => $response[0][$this->Proj->table_pk],
+				"max" => end($response)[$this->Proj->table_pk]
+			];
+		} catch (Exception $e) {
+			$result = ["error" => "Cannot fetch records from target project"];
+		}
+
+		return $result;
+	}
 }
