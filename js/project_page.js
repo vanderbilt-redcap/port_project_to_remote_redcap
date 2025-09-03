@@ -11,6 +11,8 @@ $(document).ready(function() {
   const pptr_endpoint = module.tt("pptr_endpoint");
   const remote_list = module.tt("remote_list");
 
+	populateRecordRange();
+
   buildAccordionTaskList();
 
 	let remote_select = $("#remote_select")[0];
@@ -487,4 +489,35 @@ $(document).ready(function() {
 		});
 	}
 
+
+	async function populateRecordRange() {
+		const task_name = "get_local_project_record_ids";
+
+		await $.ajax({
+			type: "POST",
+			url: pptr_endpoint,
+			data: {
+				"task": task_name,
+				"redcap_csrf_token": redcap_csrf_token
+			},
+			success: (msg) => {
+				let parsed = JSON.parse(msg);
+				let resp_arr = parsed[task_name]["local_project_record_ids"];
+
+				let record_id_dropdown_data = $.map(resp_arr, (i) => {
+					return {
+						id: i,
+						text: i
+					}
+				});
+
+				for (const el_id of ["#record_range_start", "#record_range_end"]) {
+					$(el_id).select2({
+						data: record_id_dropdown_data
+					});
+				}
+			}
+
+		});
+	}
 });

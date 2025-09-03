@@ -109,14 +109,19 @@
 	<!-- HACK: hardcode record range start and end -->
 	<!-- TODO: populate start and end as dropdown of actual record ids, visually show range -->
 	<div id="record_range_div" style="display: none;">
+		<p id="record_range_on_remote">
+			Fetching remote project record information...
+		</p>
+
 		<label class="form-check-label" for="record_range_start">
 			Record Range Start
 		</label>
-		<input id="record_range_start" name="record_range_start">
+		<select id="record_range_start" name="record_range_start"></select>
+
 		<label class="form-check-label" for="record_range_end">
 			Record Range End
 		</label>
-		<input id="record_range_end" name="record_range_end">
+		<select id="record_range_end" name="record_range_end"></select>
 	</br>
 	</div>
 

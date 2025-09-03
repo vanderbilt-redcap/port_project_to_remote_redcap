@@ -70,6 +70,10 @@ case "get_remote_project_record_ids":
 	$perform_log = false; // this is used solely to add context to the project page dropdown menu
 	$report_arr[$task]["remote_project_record_ids"] = $module->getRemoteProjectRecordList($creds);
 	break;
+case "get_local_project_record_ids":
+	$perform_log = false; // this is used solely to add context to the project page dropdown menu
+	$report_arr[$task]["local_project_record_ids"] = $module->getAllRecordPks();
+	break;
 }
 
 if ($perform_log) {

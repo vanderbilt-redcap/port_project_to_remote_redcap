@@ -541,7 +541,7 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-	private function getAllRecordPks($source_project_id = null) {
+	public function getAllRecordPks($source_project_id = null) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -595,13 +595,12 @@ class ExternalModule extends AbstractExternalModule {
 		$record_list = [];
 
 		$all_record_ids = $this->getAllRecordPks();
-		$start_idx = array_search($start_record, $all_record_ids, true);
-		$end_idx = array_search($end_record, $all_record_ids, true);
-		# add 1 to make inclusive on end of range
-		$end_delta = (($end_idx !== false) ? ($end_idx - count($all_record_ids) + 1) : null);
+		$start_idx = array_search((string) $start_record, $all_record_ids, true);
+		$end_idx = array_search((string) $end_record, $all_record_ids, true);
+		$end_delta = ($end_idx - $start_idx) + 1; # add 1 to include end of range
 		$record_list = array_slice($all_record_ids,
 															 $start_idx,
-															 $end_delta
+															 ($end_delta > 0) ? $end_delta : null # if end is after
 		);
 		return $record_list;
 	}
