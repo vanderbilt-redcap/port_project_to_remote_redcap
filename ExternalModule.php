@@ -537,10 +537,11 @@ class ExternalModule extends AbstractExternalModule {
 				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
 			}
 
-        return $response;
-    }
+			return $response;
+	}
 
-	private function getAllRecordPks($source_project_id = null) {
+
+	public function getAllRecordPks($source_project_id = null) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -559,7 +560,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $rc_records;
 	}
 
-	private function portRecordList(array $creds,  $records, $source_project_id = null, $port_file_fields = true) {
+	public function portRecordList(array $creds,  array $records, $source_project_id = null, $port_file_fields = true) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -589,6 +590,20 @@ class ExternalModule extends AbstractExternalModule {
 		return $response;
 	}
 
+
+	public function getRecordRange($start_record, $end_record) {
+		$record_list = [];
+
+		$all_record_ids = $this->getAllRecordPks();
+		$start_idx = array_search((string) $start_record, $all_record_ids, true);
+		$end_idx = array_search((string) $end_record, $all_record_ids, true);
+		$end_delta = ($end_idx - $start_idx) + 1; # add 1 to include end of range
+		$record_list = array_slice($all_record_ids,
+															 $start_idx,
+															 ($end_delta > 0) ? $end_delta : null # if end is after
+		);
+		return $record_list;
+	}
 	///////////////////////////////////////////////////////////////////////////////
 	//                                  File operations                          //
 	///////////////////////////////////////////////////////////////////////////////
@@ -905,6 +920,9 @@ class ExternalModule extends AbstractExternalModule {
 		// NOTE: this is handled by XML, as is DAG membership
 
 		$dags = \Project::getDAGRecords();
+		if (empty($dags)) {
+			return "This project does not have any DAGs";
+		}
 
 		array_walk($dags,
 							 function (&$dag) {
@@ -913,7 +931,6 @@ class ExternalModule extends AbstractExternalModule {
 								 unset($dag['data_access_group_id']);
 							 }
 		);
-
 
 		$post_params = [
 			"content" => "dag",
@@ -933,6 +950,14 @@ class ExternalModule extends AbstractExternalModule {
 		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
 
 		$dag_mapping = \Project::getUserDagRecords(PROJECT_ID);
+
+		$populated_dags = array_filter(
+			array_column($dag_mapping, "redcap_data_access_group"),
+			fn($v) => $v !== ""
+		);
+		if (empty($populated_dags)) {
+			return "No users assigned to DAGs";
+		}
 
 		$post_params = [
 			"content" => "userDagMapping",
@@ -1057,5 +1082,33 @@ class ExternalModule extends AbstractExternalModule {
 		];
 
 		return $this->curlPOST($creds, $post_params);
+	}
+
+
+	public function getRemoteProjectRecordList($creds = null) {
+		if (is_null($creds)) {
+			$creds = $this->creds;
+		}
+
+		$post_params = [
+			"content" => "record",
+			"type" => "flat",
+			"format" => "json",
+			"fields" => $this->Proj->table_pk
+		];
+
+		$response = json_decode($this->curlPOST($creds, $post_params), true);
+
+		try {
+			// TODO: what if pk is different on source and target?
+			$result = [
+				"min" => $response[0][$this->Proj->table_pk],
+				"max" => end($response)[$this->Proj->table_pk]
+			];
+		} catch (Exception $e) {
+			$result = ["error" => "Cannot fetch records from target project"];
+		}
+
+		return $result;
 	}
 }
