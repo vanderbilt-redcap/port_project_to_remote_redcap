@@ -920,6 +920,9 @@ class ExternalModule extends AbstractExternalModule {
 		// NOTE: this is handled by XML, as is DAG membership
 
 		$dags = \Project::getDAGRecords();
+		if (empty($dags)) {
+			return "This project does not have any DAGs";
+		}
 
 		array_walk($dags,
 							 function (&$dag) {
@@ -928,7 +931,6 @@ class ExternalModule extends AbstractExternalModule {
 								 unset($dag['data_access_group_id']);
 							 }
 		);
-
 
 		$post_params = [
 			"content" => "dag",
@@ -948,6 +950,14 @@ class ExternalModule extends AbstractExternalModule {
 		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
 
 		$dag_mapping = \Project::getUserDagRecords(PROJECT_ID);
+
+		$populated_dags = array_filter(
+			array_column($dag_mapping, "redcap_data_access_group"),
+			fn($v) => $v !== ""
+		);
+		if (empty($populated_dags)) {
+			return "No users assigned to DAGs";
+		}
 
 		$post_params = [
 			"content" => "userDagMapping",
