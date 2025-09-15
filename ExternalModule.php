@@ -10,9 +10,9 @@ require_once __DIR__ . '/src/CCFileRepository.php';
 require_once __DIR__ . '/src/SuperToken.php';
 require_once __DIR__ . '/src/CCUserManagement.php';
 
-class ExternalModule extends AbstractExternalModule {
-
-	const RESERVED_FILE_REPO_DIR_NAME = "PPtRR_reserved_folder";
+class ExternalModule extends AbstractExternalModule
+{
+	public const RESERVED_FILE_REPO_DIR_NAME = "PPtRR_reserved_folder";
 
 	private $file_fields = [];
 	private $Proj;
@@ -22,14 +22,16 @@ class ExternalModule extends AbstractExternalModule {
 	// private $testing_mode = true;
 	private $testing_mode = false;
 
-	function setCreds($creds) {
+	public function setCreds($creds) {
 		$this->creds = $creds;
 	}
 
-	function createReservedFileRepoFolder() {
+	public function createReservedFileRepoFolder() {
 		// TODO: consider altering this to allow override with the same module object
 		// better alternative would likely just be to have a pseudo-constructor function refresh everything
-		if (!is_null($this->remote_file_repo_folder)) { return; }
+		if (!is_null($this->remote_file_repo_folder)) {
+			return;
+		}
 		$input_folder = [
 			"name" => self::RESERVED_FILE_REPO_DIR_NAME
 		];
@@ -41,13 +43,13 @@ class ExternalModule extends AbstractExternalModule {
 		$this->remote_file_repo_folder = $folder_creation_response["folder_id"];
 	}
 
-	function getReservedFileRepoFolder() {
+	public function getReservedFileRepoFolder() {
 		if (is_null($this->remote_file_repo_folder)) {
 			$remote_file_repo = json_decode($this->getRemoteFileRepositoryDirectory(null), true);
 
 			$found = false;
-			foreach($remote_file_repo as $dir) {
-				if($dir["name"] == self::RESERVED_FILE_REPO_DIR_NAME) {
+			foreach ($remote_file_repo as $dir) {
+				if ($dir["name"] == self::RESERVED_FILE_REPO_DIR_NAME) {
 					$found = true;
 					$this->remote_file_repo_folder = $dir["folder_id"];
 					break;
@@ -62,122 +64,126 @@ class ExternalModule extends AbstractExternalModule {
 		return $this->remote_file_repo_folder;
 	}
 
-    function dumpLogs($pid = null) {
-        if ($pid === null) {
-            $pid = $this->framework->getProjectId();
-        }
+	public function dumpLogs($pid = null) {
+		if ($pid === null) {
+			$pid = $this->framework->getProjectId();
+		}
 
-        $project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?;";
+		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?;";
 
-        $em_table_join = <<<_SQL
+		$em_table_join = <<<_SQL
             INNER JOIN redcap_external_modules AS em
             ON ema.external_module_id = em.external_module_id
             _SQL;
 
-        $em_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_module_settings AS ema ";
-        $em_sql .= $em_table_join;
-        $em_sql .= " WHERE project_id = ?";
+		$em_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_module_settings AS ema ";
+		$em_sql .= $em_table_join;
+		$em_sql .= " WHERE project_id = ?";
 
-        $em_log_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_modules_log AS ema ";
-        $em_log_sql .= $em_table_join;
-        $em_log_sql .= " WHERE project_id = ?";
+		$em_log_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_modules_log AS ema ";
+		$em_log_sql .= $em_table_join;
+		$em_log_sql .= " WHERE project_id = ?";
 
-				$small_log = true;
-				if ($small_log) {
-					$log_table = $this->framework->getLogTable();
-					$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
-				}
+		$small_log = true;
+		if ($small_log) {
+			$log_table = $this->framework->getLogTable();
+			$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
+		}
 
-				$data_quality_sql = <<<_SQL
+		$data_quality_sql = <<<_SQL
 					SELECT * FROM redcap_data_quality_status AS rdqs
 						INNER JOIN redcap_data_quality_resolutions AS rdqr
 						ON rdqs.status_id = rdqr.status_id
 						WHERE project_id = ?
 					_SQL;
 
-				// TODO: event_id is still ambiguous, field comments will have partial information loss
-				// TODO: create compound table from redcap_events_metadata, redcap_arms, redcap_projects
+		// TODO: event_id is still ambiguous, field comments will have partial information loss
+		// TODO: create compound table from redcap_events_metadata, redcap_arms, redcap_projects
 
-				// TODO: alerts and alerts_sent
+		// TODO: alerts and alerts_sent
 
-        $sql_arrs = [
-            "redcap_projects" => $project_sql,
-            "redcap_external_module_settings" => $em_sql,
-            "redcap_external_modules_log" => $em_log_sql,
-            "redcap_data_quality" => $data_quality_sql
-        ];
+		$sql_arrs = [
+			"redcap_projects" => $project_sql,
+			"redcap_external_module_settings" => $em_sql,
+			"redcap_external_modules_log" => $em_log_sql,
+			"redcap_data_quality" => $data_quality_sql
+		];
 
-				if ($small_log) {
-					$sql_arrs["redcap_log_event"] = $log_sql;
-				}
+		if ($small_log) {
+			$sql_arrs["redcap_log_event"] = $log_sql;
+		}
 
-        $csv_map = [];
-        foreach( $sql_arrs as $name => $sql ) {
-            $csv_map[$name] = $this->dumpTableToCSV($this->queryWrapper($sql, [$pid]));
-        }
-        $zip_loc = $this->makeZip($csv_map);
+		$csv_map = [];
+		foreach ($sql_arrs as $name => $sql) {
+			$csv_map[$name] = $this->dumpTableToCSV($this->queryWrapper($sql, [$pid]));
+		}
+		$zip_loc = $this->makeZip($csv_map);
 
-        return [$pid, $zip_loc];
-    }
-
-
-    private function makeZip(array $files) {
-        $z = new ZipArchive();
-
-        $tmp_zip = tmpfile();
-        $tmp_zip_loc = stream_get_meta_data($tmp_zip)['uri'];
-
-        $z->open($tmp_zip_loc, ZipArchive::CREATE);
-
-        foreach ($files as $filename => $file) {
-            if (!$file) { continue; }
-            // https://stackoverflow.com/a/1061862/7418735
-            $tmp_loc = stream_get_meta_data($file)['uri'];
-            $z->addFromString("{$filename}.csv", file_get_contents($tmp_loc));
-        }
-
-        $z->close();
-
-        // NOTE: $tmp_zip itself must be returned to keep the variable in scope or the associated file will be deleted
-        return $tmp_zip;
-    }
+		return [$pid, $zip_loc];
+	}
 
 
-    /*
-     * @param array $arr Array of associative arrays in the format [["column_name" => "value"]]; passed by reference to save on memory
-     */
-    function dumpTableToCSV(array &$arr) {
-        $tmp = tmpfile();
+	private function makeZip(array $files) {
+		$z = new ZipArchive();
 
-        if (!($arr)) { return; }
+		$tmp_zip = tmpfile();
+		$tmp_zip_loc = stream_get_meta_data($tmp_zip)['uri'];
 
-        // dump header row
-        fputcsv($tmp, array_keys($arr[0]));
+		$z->open($tmp_zip_loc, ZipArchive::CREATE);
 
-        foreach($arr as $row) {
-            fputcsv($tmp, $row);
-        }
-        return $tmp;
-    }
+		foreach ($files as $filename => $file) {
+			if (!$file) {
+				continue;
+			}
+			// https://stackoverflow.com/a/1061862/7418735
+			$tmp_loc = stream_get_meta_data($file)['uri'];
+			$z->addFromString("{$filename}.csv", file_get_contents($tmp_loc));
+		}
 
+		$z->close();
 
-    function storeZipFilesInRepository($zip_file) {
-        $z = new ZipArchive();
-
-        $stream = $z->open($zip_file, 'r');
-        if ($stream) {
-            $z->extractTo($temp_dir);
-            $z->close();
-        }
-
-        foreach($files as $file) {
-            $filename = "foo.csv";
-            REDCap::storeFile($file, $pid, $filename);
-        }
-    }
+		// NOTE: $tmp_zip itself must be returned to keep the variable in scope or the associated file will be deleted
+		return $tmp_zip;
+	}
 
 
-	function getCredentials($idx = 0) {
+	/*
+	 * @param array $arr Array of associative arrays in the format [["column_name" => "value"]]; passed by reference to save on memory
+	 */
+	public function dumpTableToCSV(array &$arr) {
+		$tmp = tmpfile();
+
+		if (!($arr)) {
+			return;
+		}
+
+		// dump header row
+		fputcsv($tmp, array_keys($arr[0]));
+
+		foreach ($arr as $row) {
+			fputcsv($tmp, $row);
+		}
+		return $tmp;
+	}
+
+
+	public function storeZipFilesInRepository($zip_file) {
+		$z = new ZipArchive();
+
+		$stream = $z->open($zip_file, 'r');
+		if ($stream) {
+			$z->extractTo($temp_dir);
+			$z->close();
+		}
+
+		foreach ($files as $file) {
+			$filename = "foo.csv";
+			REDCap::storeFile($file, $pid, $filename);
+		}
+	}
+
+
+	public function getCredentials($idx = 0, $source_project_id = null) {
 		$creds = [];
 
 		$project_settings = $this->framework->getProjectSettings();
@@ -200,7 +206,7 @@ class ExternalModule extends AbstractExternalModule {
 	//                              Project Design                             //
 	/////////////////////////////////////////////////////////////////////////////
 
-	function updateRemoteProjectDesign($creds, $retain_title = false) {
+	public function updateRemoteProjectDesign($creds, $retain_title = false) {
 		// HACK: these take long
 		if ($this->testing_mode) {
 			$report = [
@@ -239,7 +245,7 @@ class ExternalModule extends AbstractExternalModule {
 		return json_encode($report);
 	}
 
-	function importXML($creds) {
+	public function importXML($creds) {
 
 		$xml_data = file_get_contents("/var/www/html/modules/crispi_clone_v0.0.0/bwr.xml");
 
@@ -251,19 +257,19 @@ class ExternalModule extends AbstractExternalModule {
 		];
 
 		return $this->curlPOST($creds, $post_params, true, true);
-		
+
 	}
 
-	function foobar($creds) {
+	public function foobar($creds) {
 
 		$xml_data = file_get_contents("/var/www/html/modules/crispi_clone_v0.0.0/bwr.xml");
 
-		$params = array(
+		$params = [
 			'token' => $creds["remote_api_token"],
 			'content' => 'project_settings',
 			'format' => 'xml',
 			'data' => $xml_data
-		);
+		];
 
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, $creds['remote_api_uri']);
@@ -282,7 +288,7 @@ class ExternalModule extends AbstractExternalModule {
 
 	}
 
-	function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
+	public function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
 		// NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
 		$dd = $this->tabulateFileFields($source_project_id);
 
@@ -290,26 +296,26 @@ class ExternalModule extends AbstractExternalModule {
 			"content" => "metadata",
 			"format" => "json",
 			"returnFormat" => "json",
-            "data" => $dd
-        ];
+			"data" => $dd
+		];
 
-				if ($reset_remote_metadata) {
-					$reset_data = '[{"field_name":"record_id","form_name":"demographics","section_header":"","field_type":"text","field_label":"Study ID","select_choices_or_calculations":"","field_note":"","text_validation_type_or_show_slider_number":"","text_validation_min":"","text_validation_max":"","identifier":"","branching_logic":"","required_field":"","custom_alignment":"","question_number":"","matrix_group_name":"","matrix_ranking":"","field_annotation":""}]';
-					$reset_params = [
-						"content" => "metadata",
-						"format" => "json",
-						"returnFormat" => "json",
-						"data" => $reset_data
-					];
-					$this->curlPOST($creds, $reset_params);
-				}
+		if ($reset_remote_metadata) {
+			$reset_data = '[{"field_name":"record_id","form_name":"demographics","section_header":"","field_type":"text","field_label":"Study ID","select_choices_or_calculations":"","field_note":"","text_validation_type_or_show_slider_number":"","text_validation_min":"","text_validation_max":"","identifier":"","branching_logic":"","required_field":"","custom_alignment":"","question_number":"","matrix_group_name":"","matrix_ranking":"","field_annotation":""}]';
+			$reset_params = [
+				"content" => "metadata",
+				"format" => "json",
+				"returnFormat" => "json",
+				"data" => $reset_data
+			];
+			$this->curlPOST($creds, $reset_params);
+		}
 
-        return $this->curlPOST($creds, $post_params);
-    }
+		return $this->curlPOST($creds, $post_params);
+	}
 
 
 	// Required for event mapping to import
-	function updateRemoteProjectInfo($creds, $retain_title = false) {
+	public function updateRemoteProjectInfo($creds, $retain_title = false) {
 
 		// Copied from API/export.php getItems funciton
 		global $lang;
@@ -319,8 +325,8 @@ class ExternalModule extends AbstractExternalModule {
 		$project_fields = \Project::getAttributesApiExportProjectInfo();
 		//print_array($Proj->project);
 		// Add values for all the project fields
-		$project_values = array();
-		foreach ($project_fields as $key=>$hdr) {
+		$project_values = [];
+		foreach ($project_fields as $key => $hdr) {
 			// Add to array
 			if (!isset($Proj->project[$key])) {
 				// Leave blank if not in array above
@@ -342,8 +348,8 @@ class ExternalModule extends AbstractExternalModule {
 		$versionsByPrefix = \ExternalModules\ExternalModules::getEnabledModules($Proj->project_id);
 		$project_values['external_modules'] = implode(",", array_keys($versionsByPrefix));
 		// Reformat the missing data codes to be pipe-separated
-		$theseMissingCodes = array();
-		foreach (parseEnum($project_values['missing_data_codes']) as $key=>$val) {
+		$theseMissingCodes = [];
+		foreach (parseEnum($project_values['missing_data_codes']) as $key => $val) {
 			$theseMissingCodes[] = "$key, $val";
 		}
 		$project_values['missing_data_codes'] = implode(" | ", $theseMissingCodes);
@@ -375,7 +381,7 @@ class ExternalModule extends AbstractExternalModule {
 
 	}
 
-	function updateRemoteArms($creds) {
+	public function updateRemoteArms($creds) {
 		// NOTE: the following function makes a call to die if arms <= 1
 		// $result = \Project::getArmRecords([]);
 
@@ -383,12 +389,12 @@ class ExternalModule extends AbstractExternalModule {
 
 		if (!$Proj->longitudinal) {
 			// As a sanity check, ensure the project doesn't have some empty arms, in which case it is "sort of" longitudinal
-						$sql = "select count(*) from redcap_events_arms where project_id = ?";
-						$numArms = db_result(db_query($sql, $Proj->project_id));
-						if ($numArms <= 1) {
-							return;
-						}
-				}
+			$sql = "select count(*) from redcap_events_arms where project_id = ?";
+			$numArms = db_result(db_query($sql, $Proj->project_id));
+			if ($numArms <= 1) {
+				return;
+			}
+		}
 
 		$result = \Project::getArmRecords([]);
 
@@ -404,10 +410,10 @@ class ExternalModule extends AbstractExternalModule {
 		return $this->curlPOST($creds, $post_params);
 	}
 
-	function updateRemoteEvents($creds) {
+	public function updateRemoteEvents($creds) {
 
 		$result = \Project::getEventRecords([], $this->Proj->project['scheduling'], false);
-			// $result = Project::getEventRecords($post, $Proj->project['scheduling'], !(isset($post['mobile_app']) && $post['mobile_app'] == '1'));
+		// $result = Project::getEventRecords($post, $Proj->project['scheduling'], !(isset($post['mobile_app']) && $post['mobile_app'] == '1'));
 
 
 		$post_params = [
@@ -422,7 +428,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $this->curlPOST($creds, $post_params);
 	}
 
-	function updateRemoteEventMapping($creds) {
+	public function updateRemoteEventMapping($creds) {
 
 		$result = \Project::getInstrEventMapRecords([]);
 
@@ -437,7 +443,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $this->curlPOST($creds, $post_params);
 	}
 
-	function updateRemoteRepeats($creds) {
+	public function updateRemoteRepeats($creds) {
 
 		if (!$this->Proj->hasRepeatingFormsEvents()) {
 			return "this project is not repeating";
@@ -445,23 +451,23 @@ class ExternalModule extends AbstractExternalModule {
 
 		// adapted from API export
 		$raw_values = $this->Proj->getRepeatingFormsEvents();
-		if($this->Proj->longitudinal){
+		if ($this->Proj->longitudinal) {
 			$eventForms = $this->Proj->eventsForms;
-			foreach ($eventForms as $dkey=>$row){
-				$event_name = \Event::getEventNameById($this->Proj->project_id,$dkey);
+			foreach ($eventForms as $dkey => $row) {
+				$event_name = \Event::getEventNameById($this->Proj->project_id, $dkey);
 				$sql = "select form_name, custom_repeat_form_label from redcap_events_repeat where event_id = " . db_escape($dkey) . "";
 				$q = db_query($sql);
-				if(db_num_rows($q) > 0){
-					while ($row = db_fetch_assoc($q)){
+				if (db_num_rows($q) > 0) {
+					while ($row = db_fetch_assoc($q)) {
 						$form_name = ($row['form_name'] ? $row['form_name'] : '');
 						$form_label = ($row['custom_repeat_form_label'] ? $row['custom_repeat_form_label'] : '');
-						$results[] = array('event_name'=>$event_name, 'form_name'=>$form_name, 'custom_form_label'=>$form_label);
+						$results[] = ['event_name' => $event_name, 'form_name' => $form_name, 'custom_form_label' => $form_label];
 					}
 				}
 			}
-		}else {//classic project
-			foreach (array_values($raw_values)[0] as $dkey=>$row){
-				$results[] = array('form_name'=>$dkey, 'custom_form_label'=>$row);
+		} else {//classic project
+			foreach (array_values($raw_values)[0] as $dkey => $row) {
+				$results[] = ['form_name' => $dkey, 'custom_form_label' => $row];
 			}
 		}
 
@@ -481,63 +487,70 @@ class ExternalModule extends AbstractExternalModule {
 	//                             Record Handling                             //
 	/////////////////////////////////////////////////////////////////////////////
 
-    function flushRemoteRecords($creds, $source_project_id = null) {
-        $post_params = [
-            "content" => "record",
-            "format" => "json",
-            "type" => "flat",
-            "fields" => $this->Proj->table_pk
-        ];
-        $dr = $this->curlPOST($creds, $post_params);
+	public function flushRemoteRecords($creds, $source_project_id = null) {
+		if ($source_project_pid == null) {
+			$target_project_pk = $this->Proj->table_pk;
+		} else {
+			// create new Proj and get table_pk
+			$Project = new \Project($source_project_id);
+			$target_project_pk = $Project->table_pk;
+		}
+		$post_params = [
+			"content" => "record",
+			"format" => "json",
+			"type" => "flat",
+			"fields" => $target_project_pk
+		];
+		$dr = $this->curlPOST($creds, $post_params);
 
-        // NOTE: this assumes the remote project's primary key is identical to local
-				$del_recs = array_unique(
-					array_values(
-						array_column(json_decode($dr, true), $this->Proj->table_pk)
-					)
-				);
+		// NOTE: this assumes the remote project's primary key is identical to local
+		$del_recs = array_unique(
+			array_values(
+				array_column(json_decode($dr, true), $this->Proj->table_pk)
+			)
+		);
 
-				if (empty($del_recs)) {
-					$response = "no records exist in target project";
-					return $response;
-				}
-
-				$post_params = [
-					"content" => "record",
-					"action" => "delete",
-					"records" => $del_recs
-					// "records" => json_encode($del_recs),
-					// "format" => "json"
-				];
-				$response = $this->curlPOST($creds, $post_params);
-
-
-        return $response;
-    }
-
-
-	function portRemoteRecords($creds, $source_project_id = null, $port_file_fields = true) {
-			// this batch size identified from TIN
-			$batch_size = 10;
-			$response = [];
-
-			$record_ids = $this->getAllRecordPks();
-
-			$record_batches = array_chunk($record_ids, $batch_size);
-
-
-			// need to build list of file fields now due to moving this to sequential ajax calls
-			$this->tabulateFileFields($source_project_id);
-
-			// TODO: wrap this in a try catch, detect OOM error and continue with halved batch size
-			//  or use memory_get_usage to track as limit is approached
-			//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
-			$batch_idx = 1;
-			foreach($record_batches as $record_batch) {
-				$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
-			}
-
+		if (empty($del_recs)) {
+			$response = "no records exist in target project";
 			return $response;
+		}
+
+		$post_params = [
+			"content" => "record",
+			"action" => "delete",
+			"records" => $del_recs
+			// "records" => json_encode($del_recs),
+			// "format" => "json"
+		];
+		$response = $this->curlPOST($creds, $post_params);
+
+
+		return $response;
+	}
+
+
+	public function portRemoteRecords($creds, $source_project_id = null, $port_file_fields = true) {
+		// this batch size identified from TIN
+		$batch_size = 10;
+		$response = [];
+
+		$record_ids = $this->getAllRecordPks();
+
+		$record_batches = array_chunk($record_ids, $batch_size);
+
+
+		// need to build list of file fields now due to moving this to sequential ajax calls
+		$this->tabulateFileFields($source_project_id);
+
+		// TODO: wrap this in a try catch, detect OOM error and continue with halved batch size
+		//  or use memory_get_usage to track as limit is approached
+		//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
+		$batch_idx = 1;
+		foreach ($record_batches as $record_batch) {
+			$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
+		}
+
+		return $response;
 	}
 
 
@@ -560,7 +573,7 @@ class ExternalModule extends AbstractExternalModule {
 		return $rc_records;
 	}
 
-	public function portRecordList(array $creds,  array $records, $source_project_id = null, $port_file_fields = true) {
+	public function portRecordList(array $creds, array $records, $source_project_id = null, $port_file_fields = true) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -598,9 +611,10 @@ class ExternalModule extends AbstractExternalModule {
 		$start_idx = array_search((string) $start_record, $all_record_ids, true);
 		$end_idx = array_search((string) $end_record, $all_record_ids, true);
 		$end_delta = ($end_idx - $start_idx) + 1; # add 1 to include end of range
-		$record_list = array_slice($all_record_ids,
-															 $start_idx,
-															 ($end_delta > 0) ? $end_delta : null # if end is after
+		$record_list = array_slice(
+			$all_record_ids,
+			$start_idx,
+			($end_delta > 0) ? $end_delta : null # if end is after
 		);
 		return $record_list;
 	}
@@ -611,43 +625,45 @@ class ExternalModule extends AbstractExternalModule {
 
 	private function portFileFields($creds, $rc_data) {
 
-			if ($this->Proj->hasFileUploadFields) {
-				$rc_data_arr = json_decode($rc_data, 1);
-				$record_primary_key = $this->Proj->table_pk;
+		if ($this->Proj->hasFileUploadFields) {
+			$rc_data_arr = json_decode($rc_data, 1);
+			$record_primary_key = $this->Proj->table_pk;
 
-				foreach($this->file_fields as $doc_field => $doc_validation) {
-					foreach($rc_data_arr as $_ => $record) {
+			foreach ($this->file_fields as $doc_field => $doc_validation) {
+				foreach ($rc_data_arr as $_ => $record) {
 
-						$this_doc_id = $record[$doc_field];
+					$this_doc_id = $record[$doc_field];
 
-						$file_data = [
-							"record_primary_key" => $record[$record_primary_key],
-							"doc_id" => $this_doc_id,
-							"field_name" => $doc_field,
-							"validation" => $doc_validation
-						];
+					$file_data = [
+						"record_primary_key" => $record[$record_primary_key],
+						"doc_id" => $this_doc_id,
+						"field_name" => $doc_field,
+						"validation" => $doc_validation
+					];
 
-						if ($file_data["doc_id"] === "") { continue; }
+					if ($file_data["doc_id"] === "") {
+						continue;
+					}
 
-						if ($this->Proj->longitudinal) {
-							$file_data["redcap_event_name"] = $record["redcap_event_name"];
-							if ($record["redcap_repeat_instance"] !== "") {
-								$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
-							}
-						}
-
-						if ($record["redcap_repeat_instrument"] !== "") {
+					if ($this->Proj->longitudinal) {
+						$file_data["redcap_event_name"] = $record["redcap_event_name"];
+						if ($record["redcap_repeat_instance"] !== "") {
 							$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
 						}
-
-						$this->portFile($creds, $file_data);
 					}
+
+					if ($record["redcap_repeat_instrument"] !== "") {
+						$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
+					}
+
+					$this->portFile($creds, $file_data);
 				}
 			}
 		}
+	}
 
 
-	function portFile(array $creds, array $file_data, $file_repo = false) {
+	public function portFile(array $creds, array $file_data, $file_repo = false) {
 		// REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
 		$sql = "SELECT stored_name, mime_type, doc_name, project_id FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
 		$edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
@@ -696,7 +712,9 @@ class ExternalModule extends AbstractExternalModule {
 				"returnFormat" => "json"
 			];
 
-			if ($this->Proj->longitudinal) { $post_params["event"] = $file_data["redcap_event_name"]; }
+			if ($this->Proj->longitudinal) {
+				$post_params["event"] = $file_data["redcap_event_name"];
+			}
 			// handle repeats
 			if ($file_data["redcap_repeat_instance"]) {
 				$post_params["repeat_instance"] = $file_data["redcap_repeat_instance"];
@@ -708,96 +726,108 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-    function dumpLogsToFileRepository($creds = null) {
-        [$pid, $zip_pointer] = $this->dumpLogs();
-        $zip_loc = stream_get_meta_data($zip_pointer)['uri'];
+	public function dumpLogsToFileRepository($creds = null) {
+		[$pid, $zip_pointer] = $this->dumpLogs();
+		$zip_loc = stream_get_meta_data($zip_pointer)['uri'];
 
-				$cfile_name = date("Y-m-d_H.i.s") . "-$pid-logs.zip";
-				$cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
+		$cfile_name = date("Y-m-d_H.i.s") . "-$pid-logs.zip";
+		$cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
 
-				$post_params = [
-						"content" => "fileRepository",
-						"action" => "import",
-						"file" => $cfile,
-						"returnFormat" => "json",
-						"folder_id" => $this->getReservedFileRepoFolder()
-				];
+		$post_params = [
+			"content" => "fileRepository",
+			"action" => "import",
+			"file" => $cfile,
+			"returnFormat" => "json",
+			"folder_id" => $this->getReservedFileRepoFolder()
+		];
 
-				$r =  $this->curlPOST($creds, $post_params, true);
+		$r =  $this->curlPOST($creds, $post_params, true);
 
-        return $r;
-    }
+		return $r;
+	}
 
 
-    function portFileRepository($creds) {
-			$this->setCreds($creds);
-			// TODO: it may be easier to gather this data via the API for the source project
-			// NOTE: \FileRepository functions are tightly coupled with UI functionality
-			// getFolderList is almost ok, but getFileList returns an array of html-formatted descriptive information
+	public function portFileRepository($creds) {
+		$this->setCreds($creds);
+		// TODO: it may be easier to gather this data via the API for the source project
+		// NOTE: \FileRepository functions are tightly coupled with UI functionality
+		// getFolderList is almost ok, but getFileList returns an array of html-formatted descriptive information
 
-			$file_list = [];
+		$file_list = [];
 
-			$CCFR = new CCFileRepository($this);
+		$CCFR = new CCFileRepository($this);
 
-			$file_list["root"] = $CCFR->getFileRepositoryFolderContents(null);
+		$file_list["root"] = $CCFR->getFileRepositoryFolderContents(null);
 
-			// HACK
-			$file_repo_tree = json_decode('[{"name":"brs_folder_1","folder_id":10,"parent_folder_id":null,"dag_id":null,"role_id":null,"remote_info":[{"folder_id":11}]}]', true);
-			if (!$this->testing_mode) {
-				$CCFR->createRemoteFolders();
-				$file_repo_tree = $CCFR->getLocalFileRepo();
-			}
+		// HACK
+		$file_repo_tree = json_decode('[{"name":"brs_folder_1","folder_id":10,"parent_folder_id":null,"dag_id":null,"role_id":null,"remote_info":[{"folder_id":11}]}]', true);
+		if (!$this->testing_mode) {
+			$CCFR->createRemoteFolders();
+			$file_repo_tree = $CCFR->getLocalFileRepo();
+		}
 
-			// manually add file repo root as first item
-			array_unshift($file_repo_tree, [
-				"name" => "root",
-					"folder_id" => null
-					// TODO: might need to set some remote_info here
+		// manually add file repo root as first item
+		array_unshift(
+			$file_repo_tree,
+			[
+			"name" => "root",
+				"folder_id" => null
+				// TODO: might need to set some remote_info here
 			]
-			);
+		);
 
-			$total_files_transferred = 0;
+		$total_files_transferred = 0;
 
-			// NOTE: getFileList assumes PROJECT_ID is reliable, account this if batch porting entire projects
-			foreach ($file_repo_tree as &$folder_info) {
-				$folder_id = $folder_info["folder_id"];
-				$folder_info["files_transferred"] = 0;
+		// NOTE: getFileList assumes PROJECT_ID is reliable, account this if batch porting entire projects
+		foreach ($file_repo_tree as &$folder_info) {
+			$folder_id = $folder_info["folder_id"];
+			$folder_info["files_transferred"] = 0;
 
-				// $file_list[$folder_id] = \FileRepository::getFileList($folder_id);
-				$file_list[$folder_id] = $CCFR->getFileRepositoryFolderContents($folder_id);
+			// $file_list[$folder_id] = \FileRepository::getFileList($folder_id);
+			$file_list[$folder_id] = $CCFR->getFileRepositoryFolderContents($folder_id);
 
-				foreach($file_list[$folder_id] as $local_folder_id => $file_id) {
-					$remote_folder_id = $folder_info["remote_info"]["folder_id"] ?? null;
-					$file_data = [
-						"doc_id" => $file_id,
-						"target_folder" => $remote_folder_id
+			foreach ($file_list[$folder_id] as $local_folder_id => $file_id) {
+				$remote_folder_id = $folder_info["remote_info"]["folder_id"] ?? null;
+				$file_data = [
+					"doc_id" => $file_id,
+					"target_folder" => $remote_folder_id
+				];
+				// HACK: easier to delete empty folder
+				$port_response = json_decode($this->portFile($creds, $file_data, true), true);
+				if (isset($port_response["error"])) {
+					// TODO get this to the user
+					$err_arr = [
+						"portFile_response" => $port_response,
+						"file_data" => $file_data
 					];
-					$port_response = $this->portFile($creds, $file_data, true);
-					$folder_info["files_transferred"]++;
-					$total_files_transferred++;
+					$errlist[] = $err_arr;
+					continue;
 				}
+				$folder_info["files_transferred"]++;
+				$total_files_transferred++;
 			}
+		}
 
-	// get only the folder names and xferred files
-	$out = [];
+		// get only the folder names and xferred files
+		$out = [];
 
-			array_filter($file_repo_tree, function($v, $k) use (&$out) {
-				$nr1 = array_filter($v, function($v1, $k1) use (&$out) {
-					$is_match = in_array($k1, ["name", "files_transferred"]);
-					return $is_match;
-				}, ARRAY_FILTER_USE_BOTH);
-				$out[$nr1["name"]] = $nr1["files_transferred"];
+		array_filter($file_repo_tree, function ($v, $k) use (&$out) {
+			$nr1 = array_filter($v, function ($v1, $k1) use (&$out) {
+				$is_match = in_array($k1, ["name", "files_transferred"]);
+				return $is_match;
 			}, ARRAY_FILTER_USE_BOTH);
+			$out[$nr1["name"]] = $nr1["files_transferred"];
+		}, ARRAY_FILTER_USE_BOTH);
 
-			$return_item = array_merge(
-				["total_items_transferred" => $total_files_transferred],
-					$out
-			);
+		$return_item = array_merge(
+			["total_items_transferred" => $total_files_transferred],
+			$out
+		);
 
-			return json_encode($return_item);
-    }
+		return json_encode($return_item);
+	}
 
-	function getRemoteFileRepositoryDirectory($creds = null, $folder_id = null) {
+	public function getRemoteFileRepositoryDirectory($creds = null, $folder_id = null) {
 		// TODO: check for extant file structure
 		$post_params = [
 			"content" => "fileRepository",
@@ -811,17 +841,17 @@ class ExternalModule extends AbstractExternalModule {
 		return $r;
 	}
 
-	function getRemoteFileRepoTreeStructure($remote_file_repo) {
+	public function getRemoteFileRepoTreeStructure($remote_file_repo) {
 		// TODO
 		// do I still need this with the CFFR class?
 		return;
-		}
+	}
 
 	/////////////////////////////////////////////////////////////////////////////
 	//                          User related functions                         //
 	/////////////////////////////////////////////////////////////////////////////
 
-	function deleteUserRoles(array $creds) {
+	public function deleteUserRoles(array $creds) {
 		// fetch and delete all user roles
 
 		$fetch_roles_post_params = [
@@ -848,7 +878,7 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-	function portUserRoles(array $creds = null) {
+	public function portUserRoles(array $creds = null) {
 		global $mobile_app_enabled;
 
 		// NOTE: if a user role's unique name doesn't already exist in the target project the unique_role_name must be set to blank
@@ -873,7 +903,7 @@ class ExternalModule extends AbstractExternalModule {
 		return json_encode($r);
 	}
 
-	function portUsers($creds) {
+	public function portUsers($creds) {
 		global $mobile_app_enabled;
 
 		$users = \UserRights::getUserDetails(PROJECT_ID, $mobile_app_enabled);
@@ -890,7 +920,7 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-	function portUserRoleAssignment($creds = null) {
+	public function portUserRoleAssignment($creds = null) {
 		// TODO: perhaps this object should be a class member
 		// re-running the mapping at this step is necessary anyway as it potentially changed during portUserRoles
 		$CCUM = new CCUserManagement($this);
@@ -915,7 +945,7 @@ class ExternalModule extends AbstractExternalModule {
 
 	// DAGS /////////////////////////////////////////////////////////////////////
 
-	function portDAGs($creds) {
+	public function portDAGs($creds) {
 		// TODO: this results in duplicate dag creation, should export dags first
 		// NOTE: this is handled by XML, as is DAG membership
 
@@ -924,12 +954,13 @@ class ExternalModule extends AbstractExternalModule {
 			return "This project does not have any DAGs";
 		}
 
-		array_walk($dags,
-							 function (&$dag) {
-								 // unset($dag['unique_group_name']);
-								 $dag['unique_group_name'] = "";
-								 unset($dag['data_access_group_id']);
-							 }
+		array_walk(
+			$dags,
+			function (&$dag) {
+				// unset($dag['unique_group_name']);
+				$dag['unique_group_name'] = "";
+				unset($dag['data_access_group_id']);
+			}
 		);
 
 		$post_params = [
@@ -945,7 +976,7 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-	function portDAGMapping($creds) {
+	public function portDAGMapping($creds) {
 		// NOTE: this is handled by super XML project creation
 		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
 
@@ -953,7 +984,7 @@ class ExternalModule extends AbstractExternalModule {
 
 		$populated_dags = array_filter(
 			array_column($dag_mapping, "redcap_data_access_group"),
-			fn($v) => $v !== ""
+			fn ($v) => $v !== ""
 		);
 		if (empty($populated_dags)) {
 			return "No users assigned to DAGs";
@@ -973,68 +1004,77 @@ class ExternalModule extends AbstractExternalModule {
 	/////////////////////////////////////////////////////////////////////////////
 	//                            Utility Functions                            //
 	/////////////////////////////////////////////////////////////////////////////
-    function curlPOST($creds, $post_params, $is_file = false) {
-			if (is_null($creds)) {
-				$creds = $this->creds;
-			}
-        $ch = curl_init();
+	public function curlPOST($creds, $post_params, $is_file = false) {
+		if (is_null($creds)) {
+			$creds = $this->creds;
+		}
+		$ch = curl_init();
 
-        if (substr($creds["remote_api_uri"], -5) !== "/api/") {
-            throw new \ErrorException("Your remote API URI must end with '/api/'");
-        }
+		if (substr($creds["remote_api_uri"], -5) !== "/api/") {
+			throw new \ErrorException("Your remote API URI must end with '/api/'");
+		}
 
-				$is_localhost = in_array($creds["remote_api_uri"], ["http://127.0.0.1/api/", "http://localhost/api/"]);
+		$is_localhost = in_array($creds["remote_api_uri"], ["http://127.0.0.1/api/", "http://localhost/api/"]);
 
-        curl_setopt($ch, CURLOPT_URL, $creds["remote_api_uri"]);
-        curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_URL, $creds["remote_api_uri"]);
+		curl_setopt($ch, CURLOPT_POST, 1);
 
-        $post_params["token"] = $creds["remote_api_token"];
+		$post_params["token"] = $creds["remote_api_token"];
 
-        // cannot http_build_query($post_params, '', '&') with files
-        if (!$is_file) {
-					$post_params = http_build_query($post_params, '', '&');
-				}
-				curl_setopt($ch, CURLOPT_POSTFIELDS, $post_params);
+		// cannot http_build_query($post_params, '', '&') with files
+		if (!$is_file) {
+			$post_params = http_build_query($post_params, '', '&');
+		}
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $post_params);
 
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $is_localhost);
-        curl_setopt($ch, CURLOPT_VERBOSE, 0);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-        curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $is_localhost);
+		curl_setopt($ch, CURLOPT_VERBOSE, 0);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+		curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
 
-        $server_output = curl_exec($ch);
+		$server_output = curl_exec($ch);
 
-        curl_close($ch);
-        return $server_output;
-    }
+		curl_close($ch);
+		return $server_output;
+	}
 
 
 	private function queryWrapper(string $sql, array $params): array {
-			$result = $this->framework->query($sql, $params);
+		$result = $this->framework->query($sql, $params);
 
-			$accumulator = [];
-			while ($row = $result->fetch_assoc()) {
-				$accumulator[] = $row;
-			}
-
-			return $accumulator;
+		$accumulator = [];
+		while ($row = $result->fetch_assoc()) {
+			$accumulator[] = $row;
 		}
 
+		return $accumulator;
+	}
 
-	function tabulateFileFields($source_project_id = null) {
+
+	public function tabulateFileFields($source_project_id = null) {
 		$dd = \MetaData::getDataDictionary(
-			/*$returnFormat = */ 'json',
-			/*$returnCsvLabelHeaders = */ true,
-			/*$fields = */ array(),
-			/*$forms = */ array(),
-			/*$isMobileApp = */ false,
-			/*$draft_mode = */ false,
-			/*$revision_id = */ null,
-			/*$project_id_override = */ $source_project_id,
-			/*$delimiter = */ ','
+			/*$returnFormat = */
+			'json',
+			/*$returnCsvLabelHeaders = */
+			true,
+			/*$fields = */
+			[],
+			/*$forms = */
+			[],
+			/*$isMobileApp = */
+			false,
+			/*$draft_mode = */
+			false,
+			/*$revision_id = */
+			null,
+			/*$project_id_override = */
+			$source_project_id,
+			/*$delimiter = */
+			','
 		);
 
 		if ($this->Proj->hasFileUploadFields) {
@@ -1066,11 +1106,11 @@ class ExternalModule extends AbstractExternalModule {
 	}
 
 
-    function setJsSettings(array $settings) {
-        foreach ($settings as $k => $v) {
-            $this->framework->tt_addToJavascriptModuleObject($k, $v);
-        }
-    }
+	public function setJsSettings(array $settings) {
+		foreach ($settings as $k => $v) {
+			$this->framework->tt_addToJavascriptModuleObject($k, $v);
+		}
+	}
 	public function getRemoteProjectInfo($creds = null) {
 		if (is_null($creds)) {
 			$creds = $this->creds;

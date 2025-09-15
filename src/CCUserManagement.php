@@ -7,24 +7,24 @@ class CCUserManagement
 	private $module;
 	private $unified_map = [];
 
-	const SOURCE_URN_KEY  = 	"local_urn";
-	const TARGET_URN_KEY 	= 	"target_urn";
+	public const SOURCE_URN_KEY  = 	"local_urn";
+	public const TARGET_URN_KEY 	= 	"target_urn";
 
 	public function __construct($module) {
 		$this->module = $module;
 	}
 
-/**
- * Populates $this->unified_map
- * {
- *  <role_label> : {
- *  self::SOURCE_URN_KEY: <source_unique_role_name>
- *  self::TARGET_URN_KEY: <target_unique_role_name>
- *  },
- *  ...
- * }
- * 
- */
+	/**
+	 * Populates $this->unified_map
+	 * {
+	 *  <role_label> : {
+	 *  self::SOURCE_URN_KEY: <source_unique_role_name>
+	 *  self::TARGET_URN_KEY: <target_unique_role_name>
+	 *  },
+	 *  ...
+	 * }
+	 *
+	 */
 	public function mapRemoteUserRoles(): void {
 		global $mobile_app_enabled;
 		$local_project_user_role_arr = \UserRights::getUserRolesDetails(PROJECT_ID, $mobile_app_enabled);
@@ -62,7 +62,7 @@ class CCUserManagement
 	public function translateUserRoleAssignment(array $user_role_assignments): array {
 		array_walk(
 			$user_role_assignments,
-			fn(&$user) => ($user["unique_role_name"] = $this->getRemoteUrnFromLocalUrn($user["unique_role_name"]))
+			fn (&$user) => ($user["unique_role_name"] = $this->getRemoteUrnFromLocalUrn($user["unique_role_name"]))
 		);
 
 		return $user_role_assignments;
@@ -73,7 +73,9 @@ class CCUserManagement
 	}
 
 	public function getRemoteUrnFromLocalUrn(string $unique_role_name): string {
-		if ($unique_role_name === "") { return ""; } // user is not assigned to a role
+		if ($unique_role_name === "") {
+			return "";
+		} // user is not assigned to a role
 		if (!str_starts_with($unique_role_name, "U-")) {
 			$err_msg = "unique_role_name entries start with U-";
 			$err_msg .= "\nDid you mean to call getRemoteUrnFromLocalRoleLabel?";

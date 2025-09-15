@@ -58,18 +58,29 @@ class SuperToken
 		// PROJECT_ID = $this->source_project_id;
 		define('PROJECT_ID', $this->source_project_id);
 		$xml = \Project::getProjectXML(
-			/* $project_id = */ $this->source_project_id,
+			/* $project_id = */
+			$this->source_project_id,
 			// this makes all toggles except $exportAllCustomMetadataOptions irrelevant,
-			/* $returnMetadataOnly */ true,
-			/* $records = */ null,
-			/* $fields = */ null,
-			/* $events = */ null,
-			/* $groups = */ null,
-			/* $outputDags = */ null,
-			/* $outputSurveyFields = */ null,
-			/* $filterLogic = */ null,
-			/* $exportFiles = */ null,
-			/* $exportAllCustomMetadataOptions = */ true
+			/* $returnMetadataOnly */
+			true,
+			/* $records = */
+			null,
+			/* $fields = */
+			null,
+			/* $events = */
+			null,
+			/* $groups = */
+			null,
+			/* $outputDags = */
+			null,
+			/* $outputSurveyFields = */
+			null,
+			/* $filterLogic = */
+			null,
+			/* $exportFiles = */
+			null,
+			/* $exportAllCustomMetadataOptions = */
+			true
 		);
 
 		// PROJECT_ID = $real_project_id;

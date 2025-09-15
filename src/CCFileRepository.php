@@ -2,8 +2,8 @@
 
 namespace PPtRR\ExternalModule;
 
-class CCFileRepository {
-
+class CCFileRepository
+{
 	private $module;
 	/*
 	 * File Repo directory structure is a stored in the database as a singly linked list wherein nodes refer to their parent rather than the typical discrete math toy exercises where parents refer to children.
@@ -50,11 +50,11 @@ class CCFileRepository {
 		return $response;
 	}
 
-	function getLocalFileRepo() {
+	public function getLocalFileRepo() {
 		return $this->local_file_repo;
 	}
 
-	function buildLocalFileRepo($project_id = PROJECT_ID) {
+	public function buildLocalFileRepo($project_id = PROJECT_ID) {
 
 		// folder contents
 		$sql = <<<_SQL
@@ -67,23 +67,25 @@ class CCFileRepository {
 		return $this->mysqlToArr($mysql_result);
 	}
 
-	function createRemoteFolders() {
+	public function createRemoteFolders() {
 		// NOTE: this function can lead to contents of the file repo being duplicated on every run if there are any child directories
 		// TODO: create tree structure to allow mapping of remote structure to local by name to avoid duplication if remote repo is not empty
 		// NOTE: for users to delete a dir in the UI, it must contain no files but can contain empty directories
 		// TODO: child directories are not marked as deleted when a parent directory is deleted
 		// asking the API for contents of a deleted folder ID will return nothing, but (n+1)'th nested children will happily return their own children
 		$this->mapRemoteToLocal();
-		foreach($this->local_file_repo as &$local_folder) {
+		foreach ($this->local_file_repo as &$local_folder) {
 			$response = $this->createRemoteFolder($local_folder);
 
 			// TODO: is it possible to hit this condition?
-			if ($response === "already_mapped") { continue; }
+			if ($response === "already_mapped") {
+				continue;
+			}
 			$local_folder["remote_info"] = $response;
 		}
 	}
 
-	function createRemoteFolder(&$input_folder) {
+	public function createRemoteFolder(&$input_folder) {
 
 		if ($input_folder["remote_info"]["folder_id"]) {
 			return $input_folder["remote_info"];
@@ -122,7 +124,7 @@ class CCFileRepository {
 		if (!is_null($response["error"])) {
 			$err = $response["error"];
 			// NOTE: this shouldn't actually happen
-			if(str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
+			if (str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
 				// find remote folder id with this name
 				$this->mapRemoteToLocal();
 
@@ -138,11 +140,11 @@ class CCFileRepository {
 		return $response;
 	}
 
-	function mapRemoteToLocal() {
+	public function mapRemoteToLocal() {
 		$remote_file_repo = json_decode($this->module->getRemoteFileRepositoryDirectory(), true);
 
-		foreach($this->local_file_repo as $_ => &$local_folder) {
-			foreach($remote_file_repo as $_ => $remote_folder) {
+		foreach ($this->local_file_repo as $_ => &$local_folder) {
+			foreach ($remote_file_repo as $_ => $remote_folder) {
 				// TODO: what if subdirs have identical names?
 				if ($local_folder["name"] == $remote_folder["name"]) {
 					$local_folder["remote_info"] = $remote_folder;
@@ -151,11 +153,19 @@ class CCFileRepository {
 		}
 	}
 
-	function getRemoteFolderId($local_folder_id) {
+	public function getRemoteFolderId($local_folder_id) {
 		return;
 	}
 
-	function resolveDocIdFromFileRepo($docs_id): int {
+
+	public function getRemoteFileRepositoryTree($node_id = null) {
+
+	}
+
+	public function getRemoteFileRepositoryTreeRecursive($node_id = null) {
+	}
+
+	public function resolveDocIdFromFileRepo($docs_id): int {
 
 		$sql = <<<_SQL
 			SELECT doc_id FROM redcap_docs_to_edocs
