@@ -4,7 +4,6 @@
     "namespace": "PPtRR\\ExternalModule",
     "documentation": "README.md",
     "framework-version": 16,
-    "enable-every-page-hooks-on-system-pages": true,
     "authors": [
         {
             "name": "Kyle Chesney",
@@ -82,9 +81,5 @@
         ]
     },
     "crons": [
-    ],
-    "compatibility": {
-        "redcap-version-min": "13.7.0"
-    }
-
+    ]
 }
