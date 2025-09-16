@@ -27,11 +27,8 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 	public function createReservedFileRepoFolder() {
-		// TODO: consider altering this to allow override with the same module object
+		// TODO: ensure this allows override with the same module object
 		// better alternative would likely just be to have a pseudo-constructor function refresh everything
-		if (!is_null($this->remote_file_repo_folder)) {
-			return;
-		}
 		$input_folder = [
 			"name" => self::RESERVED_FILE_REPO_DIR_NAME
 		];
@@ -55,12 +52,14 @@ class ExternalModule extends AbstractExternalModule
 					break;
 				}
 			}
+
+			if (!$found) {
+				$this->createReservedFileRepoFolder();
+				return $this->getReservedFileRepoFolder();
+				// TODO: err if this results in more than 1 add'l stack frame
+			}
 		}
 
-		if (!$found) {
-			$this->createReservedFileRepoFolder();
-			// TODO: throw an error, log
-		}
 		return $this->remote_file_repo_folder;
 	}
 
