@@ -83,11 +83,8 @@ class ExternalModule extends AbstractExternalModule
 		$em_log_sql .= $em_table_join;
 		$em_log_sql .= " WHERE project_id = ?";
 
-		$small_log = true;
-		if ($small_log) {
-			$log_table = $this->framework->getLogTable();
-			$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
-		}
+		$log_table = $this->framework->getLogTable();
+		$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
 
 		$data_quality_sql = <<<_SQL
 					SELECT * FROM redcap_data_quality_status AS rdqs
@@ -166,22 +163,6 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function storeZipFilesInRepository($zip_file) {
-		$z = new ZipArchive();
-
-		$stream = $z->open($zip_file, 'r');
-		if ($stream) {
-			$z->extractTo($temp_dir);
-			$z->close();
-		}
-
-		foreach ($files as $file) {
-			$filename = "foo.csv";
-			REDCap::storeFile($file, $pid, $filename);
-		}
-	}
-
-
 	public function getCredentials($idx = 0, $source_project_id = null) {
 		$creds = [];
 
@@ -244,48 +225,6 @@ class ExternalModule extends AbstractExternalModule
 		return json_encode($report);
 	}
 
-	public function importXML($creds) {
-
-		$xml_data = file_get_contents("/var/www/html/modules/crispi_clone_v0.0.0/bwr.xml");
-
-		$post_params = [
-			"content" => "metadata",
-			"format" => "xml",
-			"returnFormat" => "json",
-			"data" => $xml_data
-		];
-
-		return $this->curlPOST($creds, $post_params, true, true);
-
-	}
-
-	public function foobar($creds) {
-
-		$xml_data = file_get_contents("/var/www/html/modules/crispi_clone_v0.0.0/bwr.xml");
-
-		$params = [
-			'token' => $creds["remote_api_token"],
-			'content' => 'project_settings',
-			'format' => 'xml',
-			'data' => $xml_data
-		];
-
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $creds['remote_api_uri']);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt($ch, CURLOPT_VERBOSE, 0);
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-		curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params, '', '&'));
-		$output = curl_exec($ch);
-		print $output;
-		curl_close($ch);
-
-	}
 
 	public function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
 		// NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
@@ -537,7 +476,6 @@ class ExternalModule extends AbstractExternalModule
 
 		$record_batches = array_chunk($record_ids, $batch_size);
 
-
 		// need to build list of file fields now due to moving this to sequential ajax calls
 		$this->tabulateFileFields($source_project_id);
 
@@ -758,12 +696,8 @@ class ExternalModule extends AbstractExternalModule
 
 		$file_list["root"] = $CCFR->getFileRepositoryFolderContents(null);
 
-		// HACK
-		$file_repo_tree = json_decode('[{"name":"brs_folder_1","folder_id":10,"parent_folder_id":null,"dag_id":null,"role_id":null,"remote_info":[{"folder_id":11}]}]', true);
-		if (!$this->testing_mode) {
-			$CCFR->createRemoteFolders();
-			$file_repo_tree = $CCFR->getLocalFileRepo();
-		}
+		$CCFR->createRemoteFolders();
+		$file_repo_tree = $CCFR->getLocalFileRepo();
 
 		// manually add file repo root as first item
 		array_unshift(
@@ -939,7 +873,6 @@ class ExternalModule extends AbstractExternalModule
 		$response = $this->curlPOST($creds, $post_params);
 		return $response;
 	}
-
 
 
 	// DAGS /////////////////////////////////////////////////////////////////////
