@@ -22,9 +22,33 @@ class ExternalModule extends AbstractExternalModule
 	// private $testing_mode = true;
 	private $testing_mode = false;
 
-	public function getCredentials() {
+	public function setCredentials($idx = 0, $source_project_id = null) {
+		// this function is equivalent to module instantiation for Proj object purposes
+		$creds = [];
+
+		$project_settings = $this->framework->getProjectSettings($source_project_id);
+		$parts = ["remote_api_uri", "remote_api_token"];
+
+		foreach ($parts as $part) {
+			$creds[$part] = $project_settings[$part][$idx];
+		}
+
+		$this->Proj = new \Project($source_project_id);
+		$this->creds = $creds;
+
+		return $creds;
+	}
+
+
+	public function getCredentials(): array {
 		return $this->creds;
 	}
+
+
+	public function getSourceProjectId(): int {
+		return $this->Proj->project_id;
+	}
+
 
 	public function createReservedFileRepoFolder() {
 		// TODO: ensure this allows override with the same module object
@@ -63,10 +87,8 @@ class ExternalModule extends AbstractExternalModule
 		return $this->remote_file_repo_folder;
 	}
 
-	public function dumpLogs($pid = null) {
-		if ($pid === null) {
-			$pid = $this->framework->getProjectId();
-		}
+	public function dumpLogs() {
+		$pid = $this->getSourceProjectId();
 
 		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?;";
 
@@ -160,24 +182,6 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function setCredentials($idx = 0, $source_project_id = null) {
-		$creds = [];
-
-		$project_settings = $this->framework->getProjectSettings($source_project_id);
-		$parts = ["remote_api_uri", "remote_api_token"];
-
-		foreach ($parts as $part) {
-			$creds[$part] = $project_settings[$part][$idx];
-		}
-
-		// this function is equivalent to module instantiation for Proj object purposes
-		$this->Proj = new \Project($source_project_id);
-		$this->creds = $creds;
-
-		return $creds;
-	}
-
-
 	/////////////////////////////////////////////////////////////////////////////
 	//                              Project Design                             //
 	/////////////////////////////////////////////////////////////////////////////
@@ -197,12 +201,10 @@ class ExternalModule extends AbstractExternalModule
 			return json_encode($report);
 		}
 
-		$Proj = new \Project();
-
 		$project_info = $this->updateRemoteProjectInfo($retain_title);
-		$fields = $this->updateRemoteDataDictionary(null, true);
+		$fields = $this->updateRemoteDataDictionary(true);
 		$arms = $this->updateRemoteArms();
-		if ($Proj->project['repeatforms']) {
+		if ($this->Proj->project['repeatforms']) {
 			// these functions call die if the above is false
 			$events = $this->updateRemoteEvents();
 			$event_mapping = $this->updateRemoteEventMapping();
@@ -222,9 +224,9 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function updateRemoteDataDictionary(int $source_project_id = null, bool $reset_remote_metadata = false) {
+	public function updateRemoteDataDictionary(bool $reset_remote_metadata = false) {
 		// NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
-		$dd = $this->tabulateFileFields($source_project_id);
+		$dd = $this->tabulateFileFields();
 
 		$post_params = [
 			"content" => "metadata",
@@ -319,19 +321,16 @@ class ExternalModule extends AbstractExternalModule
 		// NOTE: the following function makes a call to die if arms <= 1
 		// $result = \Project::getArmRecords([]);
 
-		// TODO: just use this->Proj ???
-		$Proj = new \Project();
-
-		if (!$Proj->longitudinal) {
+		if (!$this->Proj->longitudinal) {
 			// As a sanity check, ensure the project doesn't have some empty arms, in which case it is "sort of" longitudinal
 			$sql = "select count(*) from redcap_events_arms where project_id = ?";
-			$numArms = db_result(db_query($sql, $Proj->project_id));
+			$numArms = db_result(db_query($sql, $this->getSourceProjectId()));
 			if ($numArms <= 1) {
 				return;
 			}
 		}
 
-		$result = \Project::getArmRecords([]);
+		$result = $this->Proj->extractArms();
 
 		$post_params = [
 			"content" => "arm",
@@ -347,6 +346,7 @@ class ExternalModule extends AbstractExternalModule
 
 	public function updateRemoteEvents() {
 
+		// TODO: this instantaties a new Proj object and is thus not suitable for cron context without define(PROJECT_ID)
 		$result = \Project::getEventRecords([], $this->Proj->project['scheduling'], false);
 		// $result = Project::getEventRecords($post, $Proj->project['scheduling'], !(isset($post['mobile_app']) && $post['mobile_app'] == '1'));
 
@@ -365,6 +365,7 @@ class ExternalModule extends AbstractExternalModule
 
 	public function updateRemoteEventMapping() {
 
+		// TODO: this instantaties a new Proj object and is thus not suitable for cron context without define(PROJECT_ID)
 		$result = \Project::getInstrEventMapRecords([]);
 
 		$post_params = [
@@ -422,14 +423,10 @@ class ExternalModule extends AbstractExternalModule
 	//                             Record Handling                             //
 	/////////////////////////////////////////////////////////////////////////////
 
-	public function flushRemoteRecords($source_project_id = null) {
-		if ($source_project_pid == null) {
-			$target_project_pk = $this->Proj->table_pk;
-		} else {
-			// create new Proj and get table_pk
-			$Project = new \Project($source_project_id);
-			$target_project_pk = $Project->table_pk;
-		}
+	public function flushRemoteRecords() {
+		// NOTE: this assumes the remote project's primary key is identical to local
+		$target_project_pk = $this->Proj->table_pk;
+
 		$post_params = [
 			"content" => "record",
 			"format" => "json",
@@ -438,10 +435,9 @@ class ExternalModule extends AbstractExternalModule
 		];
 		$dr = $this->curlPOST($post_params);
 
-		// NOTE: this assumes the remote project's primary key is identical to local
 		$del_recs = array_unique(
 			array_values(
-				array_column(json_decode($dr, true), $this->Proj->table_pk)
+				array_column(json_decode($dr, true), $target_project_pk)
 			)
 		);
 
@@ -464,32 +460,33 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function portRemoteRecords($source_project_id = null, $port_file_fields = true) {
+	public function portRemoteRecords($port_file_fields = true) {
 		// this batch size identified from TIN
 		$batch_size = 10;
 		$response = [];
 
-		$record_ids = $this->getAllRecordPks($source_project_id);
+		$record_ids = $this->getAllRecordPks();
 
 		// NOTE: check API Sync EM for a more robust batching solution
 		$record_batches = array_chunk($record_ids, $batch_size);
 
 		// need to build list of file fields now due to moving this to sequential ajax calls
-		$this->tabulateFileFields($source_project_id);
+		$this->tabulateFileFields();
 
 		// TODO: wrap this in a try catch, detect OOM error and continue with halved batch size
 		//  or use memory_get_usage to track as limit is approached
 		//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
 		$batch_idx = 1;
 		foreach ($record_batches as $record_batch) {
-			$response[$batch_idx++] = $this->portRecordList($record_batch, $source_project_id, $port_file_fields);
+			$response[$batch_idx++] = $this->portRecordList($record_batch, $port_file_fields);
 		}
 
 		return $response;
 	}
 
 
-	public function getAllRecordPks($source_project_id = null) {
+	public function getAllRecordPks() {
+		$source_project_id = $this->getSourceProjectId();
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -508,7 +505,8 @@ class ExternalModule extends AbstractExternalModule
 		return $rc_records;
 	}
 
-	public function portRecordList(array $records, $source_project_id = null, $port_file_fields = true) {
+	public function portRecordList(array $records, $port_file_fields = true) {
+		$source_project_id = $this->getSourceProjectId();
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -810,9 +808,10 @@ class ExternalModule extends AbstractExternalModule
 
 	public function portUserRoles() {
 		global $mobile_app_enabled;
+		$project_id = $this->getSourceProjectId();
 
 		// NOTE: if a user role's unique name doesn't already exist in the target project the unique_role_name must be set to blank
-		$user_role_arr = \UserRights::getUserRolesDetails(PROJECT_ID, $mobile_app_enabled);
+		$user_role_arr = \UserRights::getUserRolesDetails($project_id, $mobile_app_enabled);
 
 		$CCUM = new CCUserManagement($this);
 		$CCUM->mapRemoteUserRoles();
@@ -835,8 +834,9 @@ class ExternalModule extends AbstractExternalModule
 
 	public function portUsers() {
 		global $mobile_app_enabled;
+		$project_id = $this->getSourceProjectId();
 
-		$users = \UserRights::getUserDetails(PROJECT_ID, $mobile_app_enabled);
+		$users = \UserRights::getUserDetails($project_id, $mobile_app_enabled);
 
 		$post_params = [
 			"content" => "user",
@@ -909,7 +909,7 @@ class ExternalModule extends AbstractExternalModule
 		// NOTE: this is handled by super XML project creation
 		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
 
-		$dag_mapping = \Project::getUserDagRecords(PROJECT_ID);
+		$dag_mapping = \Project::getUserDagRecords($this->getSourceProjectId());
 
 		$populated_dags = array_filter(
 			array_column($dag_mapping, "redcap_data_access_group"),
@@ -982,7 +982,8 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function tabulateFileFields($source_project_id = null) {
+	public function tabulateFileFields() {
+		$source_project_id = $this->getSourceProjectId();
 		$dd = \MetaData::getDataDictionary(
 			/*$returnFormat = */
 			'json',

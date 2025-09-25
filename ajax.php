@@ -36,10 +36,10 @@ switch ($task) {
 		}
 		$port_file_fields = (bool) $_POST["port_file_fields"];
 		if (!((bool) $_POST["port_record_range"])) {
-			$records_pushed = $module->portRemoteRecords(null, $port_file_fields);
+			$records_pushed = $module->portRemoteRecords($port_file_fields);
 		} else {
 			$record_list = $module->getRecordRange($_POST["record_range_start"], $_POST["record_range_end"]);
-			$records_pushed = $module->portRecordList($$record_list, null, $port_file_fields);
+			$records_pushed = $module->portRecordList($$record_list, $port_file_fields);
 		}
 		$report_arr[$task]["records_sent"] = $records_pushed;
 		break;

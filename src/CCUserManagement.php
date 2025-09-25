@@ -27,7 +27,7 @@ class CCUserManagement
 	 */
 	public function mapRemoteUserRoles(): void {
 		global $mobile_app_enabled;
-		$local_project_user_role_arr = \UserRights::getUserRolesDetails(PROJECT_ID, $mobile_app_enabled);
+		$local_project_user_role_arr = \UserRights::getUserRolesDetails($this->module->getSourceProjectId(), $mobile_app_enabled);
 
 
 		$fetch_post_params = [

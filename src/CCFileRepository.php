@@ -19,7 +19,8 @@ class CCFileRepository
 	}
 
 
-	public function getFileRepositoryFolderContents($folder_id = null, $project_id = PROJECT_ID) {
+	public function getFileRepositoryFolderContents($folder_id = null) {
+		$project_id = $this->module->getSourceProjectId();
 
 		$recycle_bin = false;
 
@@ -72,7 +73,8 @@ class CCFileRepository
 		return $this->local_file_repo;
 	}
 
-	public function buildLocalFileRepo($project_id = PROJECT_ID) {
+	public function buildLocalFileRepo() {
+		$project_id = $this->module->getSourceProjectId();
 
 		// folder contents
 		$sql = <<<_SQL
