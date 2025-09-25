@@ -102,12 +102,9 @@ class ExternalModule extends AbstractExternalModule
 			"redcap_projects" => $project_sql,
 			"redcap_external_module_settings" => $em_sql,
 			"redcap_external_modules_log" => $em_log_sql,
-			"redcap_data_quality" => $data_quality_sql
+			"redcap_data_quality" => $data_quality_sql,
+			"redcap_log_event" => $log_sql
 		];
-
-		if ($small_log) {
-			$sql_arrs["redcap_log_event"] = $log_sql;
-		}
 
 		$csv_map = [];
 		foreach ($sql_arrs as $name => $sql) {
