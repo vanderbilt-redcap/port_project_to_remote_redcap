@@ -36,7 +36,7 @@ class CCUserManagement
 			"returnFormat" => "json"
 		];
 
-		$target_project_user_role_arr = json_decode($this->module->curlPOST($creds, $fetch_post_params), 1);
+		$target_project_user_role_arr = json_decode($this->module->curlPOST($fetch_post_params), 1);
 
 		$local_user_role_map = array_column($local_project_user_role_arr, "unique_role_name", "role_label") ?? [];
 		$target_user_role_map = array_column($target_project_user_role_arr, "unique_role_name", "role_label") ?? [];

@@ -22,8 +22,8 @@ class ExternalModule extends AbstractExternalModule
 	// private $testing_mode = true;
 	private $testing_mode = false;
 
-	public function setCreds($creds) {
-		$this->creds = $creds;
+	public function getCredentials() {
+		return $this->creds;
 	}
 
 	public function createReservedFileRepoFolder() {
@@ -71,9 +71,9 @@ class ExternalModule extends AbstractExternalModule
 		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?;";
 
 		$em_table_join = <<<_SQL
-            INNER JOIN redcap_external_modules AS em
-            ON ema.external_module_id = em.external_module_id
-            _SQL;
+						INNER JOIN redcap_external_modules AS em
+						ON ema.external_module_id = em.external_module_id
+						_SQL;
 
 		$em_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_module_settings AS ema ";
 		$em_sql .= $em_table_join;
@@ -160,10 +160,10 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function getCredentials($idx = 0, $source_project_id = null) {
+	public function setCredentials($idx = 0, $source_project_id = null) {
 		$creds = [];
 
-		$project_settings = $this->framework->getProjectSettings();
+		$project_settings = $this->framework->getProjectSettings($source_project_id);
 		$parts = ["remote_api_uri", "remote_api_token"];
 
 		foreach ($parts as $part) {
@@ -171,9 +171,8 @@ class ExternalModule extends AbstractExternalModule
 		}
 
 		// this function is equivalent to module instantiation for Proj object purposes
-		$this->Proj = new \Project();
-
-		$this->setCreds($creds);
+		$this->Proj = new \Project($source_project_id);
+		$this->creds = $creds;
 
 		return $creds;
 	}
@@ -183,7 +182,7 @@ class ExternalModule extends AbstractExternalModule
 	//                              Project Design                             //
 	/////////////////////////////////////////////////////////////////////////////
 
-	public function updateRemoteProjectDesign($creds, $retain_title = false) {
+	public function updateRemoteProjectDesign($retain_title = false) {
 		// HACK: these take long
 		if ($this->testing_mode) {
 			$report = [
@@ -200,15 +199,15 @@ class ExternalModule extends AbstractExternalModule
 
 		$Proj = new \Project();
 
-		$project_info = $this->updateRemoteProjectInfo($creds, $retain_title);
-		$fields = $this->updateRemoteDataDictionary($creds, null, true);
-		$arms = $this->updateRemoteArms($creds);
+		$project_info = $this->updateRemoteProjectInfo($retain_title);
+		$fields = $this->updateRemoteDataDictionary(null, true);
+		$arms = $this->updateRemoteArms();
 		if ($Proj->project['repeatforms']) {
 			// these functions call die if the above is false
-			$events = $this->updateRemoteEvents($creds);
-			$event_mapping = $this->updateRemoteEventMapping($creds);
+			$events = $this->updateRemoteEvents();
+			$event_mapping = $this->updateRemoteEventMapping();
 		}
-		$repeats = $this->updateRemoteRepeats($creds);
+		$repeats = $this->updateRemoteRepeats();
 
 		$report = [
 			"project_info" => $project_info,
@@ -223,7 +222,7 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function updateRemoteDataDictionary(array $creds, int $source_project_id = null, bool $reset_remote_metadata = false) {
+	public function updateRemoteDataDictionary(int $source_project_id = null, bool $reset_remote_metadata = false) {
 		// NOTE: Proj->metadata is a superset of data necessary for the API, this static function call is used in lieu of manually paring down the map
 		$dd = $this->tabulateFileFields($source_project_id);
 
@@ -242,15 +241,15 @@ class ExternalModule extends AbstractExternalModule
 				"returnFormat" => "json",
 				"data" => $reset_data
 			];
-			$this->curlPOST($creds, $reset_params);
+			$this->curlPOST($reset_params);
 		}
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
 
 	// Required for event mapping to import
-	public function updateRemoteProjectInfo($creds, $retain_title = false) {
+	public function updateRemoteProjectInfo($retain_title = false) {
 
 		// Copied from API/export.php getItems funciton
 		global $lang;
@@ -312,14 +311,15 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($project_values)
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 
 	}
 
-	public function updateRemoteArms($creds) {
+	public function updateRemoteArms() {
 		// NOTE: the following function makes a call to die if arms <= 1
 		// $result = \Project::getArmRecords([]);
 
+		// TODO: just use this->Proj ???
 		$Proj = new \Project();
 
 		if (!$Proj->longitudinal) {
@@ -342,10 +342,10 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($result)
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
-	public function updateRemoteEvents($creds) {
+	public function updateRemoteEvents() {
 
 		$result = \Project::getEventRecords([], $this->Proj->project['scheduling'], false);
 		// $result = Project::getEventRecords($post, $Proj->project['scheduling'], !(isset($post['mobile_app']) && $post['mobile_app'] == '1'));
@@ -360,10 +360,10 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($result)
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
-	public function updateRemoteEventMapping($creds) {
+	public function updateRemoteEventMapping() {
 
 		$result = \Project::getInstrEventMapRecords([]);
 
@@ -375,10 +375,10 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($result)
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
-	public function updateRemoteRepeats($creds) {
+	public function updateRemoteRepeats() {
 
 		if (!$this->Proj->hasRepeatingFormsEvents()) {
 			return "this project is not repeating";
@@ -414,7 +414,7 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($results)
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
 
@@ -422,7 +422,7 @@ class ExternalModule extends AbstractExternalModule
 	//                             Record Handling                             //
 	/////////////////////////////////////////////////////////////////////////////
 
-	public function flushRemoteRecords($creds, $source_project_id = null) {
+	public function flushRemoteRecords($source_project_id = null) {
 		if ($source_project_pid == null) {
 			$target_project_pk = $this->Proj->table_pk;
 		} else {
@@ -436,7 +436,7 @@ class ExternalModule extends AbstractExternalModule
 			"type" => "flat",
 			"fields" => $target_project_pk
 		];
-		$dr = $this->curlPOST($creds, $post_params);
+		$dr = $this->curlPOST($post_params);
 
 		// NOTE: this assumes the remote project's primary key is identical to local
 		$del_recs = array_unique(
@@ -457,20 +457,21 @@ class ExternalModule extends AbstractExternalModule
 			// "records" => json_encode($del_recs),
 			// "format" => "json"
 		];
-		$response = $this->curlPOST($creds, $post_params);
+		$response = $this->curlPOST($post_params);
 
 
 		return $response;
 	}
 
 
-	public function portRemoteRecords($creds, $source_project_id = null, $port_file_fields = true) {
+	public function portRemoteRecords($source_project_id = null, $port_file_fields = true) {
 		// this batch size identified from TIN
 		$batch_size = 10;
 		$response = [];
 
-		$record_ids = $this->getAllRecordPks();
+		$record_ids = $this->getAllRecordPks($source_project_id);
 
+		// NOTE: check API Sync EM for a more robust batching solution
 		$record_batches = array_chunk($record_ids, $batch_size);
 
 		// need to build list of file fields now due to moving this to sequential ajax calls
@@ -481,7 +482,7 @@ class ExternalModule extends AbstractExternalModule
 		//  Fatal error: Allowed memory size of 1073741824 bytes exhausted (tried to allocate 327680 bytes) in /app001/www/redcap/redcap_v14.9.3/Classes/Records.php on line 2500
 		$batch_idx = 1;
 		foreach ($record_batches as $record_batch) {
-			$response[$batch_idx++] = $this->portRecordList($creds, $record_batch, $source_project_id, $port_file_fields);
+			$response[$batch_idx++] = $this->portRecordList($record_batch, $source_project_id, $port_file_fields);
 		}
 
 		return $response;
@@ -507,7 +508,7 @@ class ExternalModule extends AbstractExternalModule
 		return $rc_records;
 	}
 
-	public function portRecordList(array $creds, array $records, $source_project_id = null, $port_file_fields = true) {
+	public function portRecordList(array $records, $source_project_id = null, $port_file_fields = true) {
 
 		$get_data_params = [
 			"project_id" => $source_project_id,
@@ -526,13 +527,13 @@ class ExternalModule extends AbstractExternalModule
 			"data" => $rc_data
 		];
 
-		$response = $this->curlPOST($creds, $post_params);
+		$response = $this->curlPOST($post_params);
 
 
 		// port edocs individually
 		// NOTE: as per the API documentation this is NOT suitable for signatures
 		if ($port_file_fields) {
-			$this->portFileFields($creds, $rc_data);
+			$this->portFileFields($rc_data);
 		}
 		return $response;
 	}
@@ -557,7 +558,7 @@ class ExternalModule extends AbstractExternalModule
 	///////////////////////////////////////////////////////////////////////////////
 
 
-	private function portFileFields($creds, $rc_data) {
+	private function portFileFields($rc_data) {
 
 		if ($this->Proj->hasFileUploadFields) {
 			$rc_data_arr = json_decode($rc_data, 1);
@@ -590,14 +591,14 @@ class ExternalModule extends AbstractExternalModule
 						$file_data["redcap_repeat_instance"] = $record["redcap_repeat_instance"];
 					}
 
-					$this->portFile($creds, $file_data);
+					$this->portFile($file_data);
 				}
 			}
 		}
 	}
 
 
-	public function portFile(array $creds, array $file_data, $file_repo = false) {
+	public function portFile(array $file_data, $file_repo = false) {
 		// REDCap::getFile was not used as it returns file content directly instead of stored_name, requiring a tmp_file to be created and passed to curl_file_create
 		$sql = "SELECT stored_name, mime_type, doc_name, project_id FROM redcap_edocs_metadata WHERE doc_id = ? LIMIT 1";
 		$edocs_tbl = $this->queryWrapper($sql, [$file_data['doc_id']])[0];
@@ -655,12 +656,12 @@ class ExternalModule extends AbstractExternalModule
 			}
 		}
 
-		$response = $this->curlPOST($creds, $post_params, true);
+		$response = $this->curlPOST($post_params, true);
 		return $response;
 	}
 
 
-	public function dumpLogsToFileRepository($creds = null) {
+	public function dumpLogsToFileRepository() {
 		[$pid, $zip_pointer] = $this->dumpLogs();
 		$zip_loc = stream_get_meta_data($zip_pointer)['uri'];
 
@@ -675,14 +676,13 @@ class ExternalModule extends AbstractExternalModule
 			"folder_id" => $this->getReservedFileRepoFolder()
 		];
 
-		$r =  $this->curlPOST($creds, $post_params, true);
+		$r =  $this->curlPOST($post_params, true);
 
 		return $r;
 	}
 
 
-	public function portFileRepository($creds) {
-		$this->setCreds($creds);
+	public function portFileRepository() {
 		// TODO: it may be easier to gather this data via the API for the source project
 		// NOTE: \FileRepository functions are tightly coupled with UI functionality
 		// getFolderList is almost ok, but getFileList returns an array of html-formatted descriptive information
@@ -723,7 +723,7 @@ class ExternalModule extends AbstractExternalModule
 					"target_folder" => $remote_folder_id
 				];
 				// HACK: easier to delete empty folder
-				$port_response = json_decode($this->portFile($creds, $file_data, true), true);
+				$port_response = json_decode($this->portFile($file_data, true), true);
 				if (isset($port_response["error"])) {
 					// TODO get this to the user
 					$err_arr = [
@@ -757,7 +757,7 @@ class ExternalModule extends AbstractExternalModule
 		return json_encode($return_item);
 	}
 
-	public function getRemoteFileRepositoryDirectory($creds = null, $folder_id = null) {
+	public function getRemoteFileRepositoryDirectory($folder_id = null) {
 		// TODO: check for extant file structure
 		$post_params = [
 			"content" => "fileRepository",
@@ -766,7 +766,7 @@ class ExternalModule extends AbstractExternalModule
 			"folder_id" => $folder_id
 		];
 
-		$r =  $this->curlPOST($creds, $post_params);
+		$r =  $this->curlPOST($post_params);
 
 		return $r;
 	}
@@ -781,7 +781,7 @@ class ExternalModule extends AbstractExternalModule
 	//                          User related functions                         //
 	/////////////////////////////////////////////////////////////////////////////
 
-	public function deleteUserRoles(array $creds) {
+	public function deleteUserRoles() {
 		// fetch and delete all user roles
 
 		$fetch_roles_post_params = [
@@ -789,7 +789,7 @@ class ExternalModule extends AbstractExternalModule
 			"format" => "json"
 		];
 
-		$r1 =  json_decode($this->curlPOST($creds, $fetch_roles_post_params), 1);
+		$r1 =  json_decode($this->curlPOST($fetch_roles_post_params), 1);
 		$user_role_data = array_column($r1, "unique_role_name") ?? [];
 
 		if ($user_role_data === []) {
@@ -802,13 +802,13 @@ class ExternalModule extends AbstractExternalModule
 			"roles" => $user_role_data
 		];
 
-		$response = $this->curlPOST($creds, $delete_roles_post_params);
+		$response = $this->curlPOST($delete_roles_post_params);
 
 		return $response;
 	}
 
 
-	public function portUserRoles(array $creds = null) {
+	public function portUserRoles() {
 		global $mobile_app_enabled;
 
 		// NOTE: if a user role's unique name doesn't already exist in the target project the unique_role_name must be set to blank
@@ -828,12 +828,12 @@ class ExternalModule extends AbstractExternalModule
 			"returnFormat" => "json",
 			"data" => json_encode($user_role_arr)
 		];
-		$r =  json_decode($this->curlPOST($creds, $post_params), true);
+		$r =  json_decode($this->curlPOST($post_params), true);
 
 		return json_encode($r);
 	}
 
-	public function portUsers($creds) {
+	public function portUsers() {
 		global $mobile_app_enabled;
 
 		$users = \UserRights::getUserDetails(PROJECT_ID, $mobile_app_enabled);
@@ -845,12 +845,12 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($users)
 		];
 
-		$r = $this->curlPOST($creds, $post_params);
+		$r = $this->curlPOST($post_params);
 		return $r;
 	}
 
 
-	public function portUserRoleAssignment($creds = null) {
+	public function portUserRoleAssignment() {
 		// TODO: perhaps this object should be a class member
 		// re-running the mapping at this step is necessary anyway as it potentially changed during portUserRoles
 		$CCUM = new CCUserManagement($this);
@@ -867,14 +867,14 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($remote_user_role_assignments)
 		];
 
-		$response = $this->curlPOST($creds, $post_params);
+		$response = $this->curlPOST($post_params);
 		return $response;
 	}
 
 
 	// DAGS /////////////////////////////////////////////////////////////////////
 
-	public function portDAGs($creds) {
+	public function portDAGs() {
 		// TODO: this results in duplicate dag creation, should export dags first
 		// NOTE: this is handled by XML, as is DAG membership
 
@@ -900,12 +900,12 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($dags)
 		];
 
-		$r = $this->curlPOST($creds, $post_params);
+		$r = $this->curlPOST($post_params);
 		return $r;
 	}
 
 
-	public function portDAGMapping($creds) {
+	public function portDAGMapping() {
 		// NOTE: this is handled by super XML project creation
 		// NOTE: users are appropriately mapped to the initial dag rather than any duplicates
 
@@ -927,16 +927,14 @@ class ExternalModule extends AbstractExternalModule
 			"data" => json_encode($dag_mapping)
 		];
 
-		$r = $this->curlPOST($creds, $post_params);
+		$r = $this->curlPOST($post_params);
 		return $r;
 	}
 	/////////////////////////////////////////////////////////////////////////////
 	//                            Utility Functions                            //
 	/////////////////////////////////////////////////////////////////////////////
-	public function curlPOST($creds, $post_params, $is_file = false) {
-		if (is_null($creds)) {
-			$creds = $this->creds;
-		}
+	public function curlPOST($post_params, $is_file = false) {
+		$creds = $this->creds;
 		$ch = curl_init();
 
 		if (substr($creds["remote_api_uri"], -5) !== "/api/") {
@@ -1040,25 +1038,18 @@ class ExternalModule extends AbstractExternalModule
 			$this->framework->tt_addToJavascriptModuleObject($k, $v);
 		}
 	}
-	public function getRemoteProjectInfo($creds = null) {
-		if (is_null($creds)) {
-			$creds = $this->creds;
-		}
 
+	public function getRemoteProjectInfo() {
 		$post_params = [
 			"content" => "project",
 			"format" => "json"
 		];
 
-		return $this->curlPOST($creds, $post_params);
+		return $this->curlPOST($post_params);
 	}
 
 
-	public function getRemoteProjectRecordList($creds = null) {
-		if (is_null($creds)) {
-			$creds = $this->creds;
-		}
-
+	public function getRemoteProjectRecordList() {
 		$post_params = [
 			"content" => "record",
 			"type" => "flat",
@@ -1066,7 +1057,7 @@ class ExternalModule extends AbstractExternalModule
 			"fields" => $this->Proj->table_pk
 		];
 
-		$response = json_decode($this->curlPOST($creds, $post_params), true);
+		$response = json_decode($this->curlPOST($post_params), true);
 
 		try {
 			// TODO: what if pk is different on source and target?

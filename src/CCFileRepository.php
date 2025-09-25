@@ -136,7 +136,7 @@ class CCFileRepository
 		];
 
 		// TODO: handle if this dir exists
-		$raw_response = $this->module->curlPOST(null, $post_params);
+		$raw_response = $this->module->curlPOST($post_params);
 		$response = json_decode($raw_response, true);
 
 		if (!is_null($response["error"])) {
