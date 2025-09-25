@@ -25,23 +25,41 @@ class CCFileRepository
 
 		$response = [];
 
-		$sql = "select d.docs_id, d.docs_name, d.docs_size, e.stored_date, d.docs_comment, ff.folder_id, e.delete_date, e.doc_id
-			from redcap_docs_to_edocs de, redcap_edocs_metadata e, redcap_docs d
-			left join redcap_docs_attachments a on a.docs_id = d.docs_id
-			left join redcap_docs_folders_files ff on ff.docs_id = d.docs_id
-			left join redcap_docs_folders f on ff.folder_id = f.folder_id
-			where d.project_id = $project_id and d.export_file = 0 and a.docs_id is null
-			and de.docs_id = d.docs_id and de.doc_id = e.doc_id and e.date_deleted_server is null";
+		$sql = <<<_SQL
+			SELECT d.docs_id, d.docs_name, d.docs_size, e.stored_date, d.docs_comment, ff.folder_id, e.delete_date, e.doc_id
+			FROM redcap_docs_to_edocs de, redcap_edocs_metadata e, redcap_docs d
+			LEFT JOIN redcap_docs_attachments a ON a.docs_id = d.docs_id
+			LEFT JOIN redcap_docs_folders_files ff ON ff.docs_id = d.docs_id
+			LEFT JOIN redcap_docs_folders f ON ff.folder_id = f.folder_id
+			WHERE d.project_id = ? AND d.export_file = 0 AND a.docs_id IS NULL
+			AND de.docs_id = d.docs_id AND de.doc_id = e.doc_id AND e.date_deleted_server IS NULL
+		_SQL;
+		$sql_params = [$project_id];
 		if ($recycle_bin) {
 			// Recycle bin: Show ALL files from ALL folders (flat display) - apply DAG/Role restriction here since we normally apply it at folder level outside the Recycle Bin
-			$dagsql = ($user_rights['group_id'] == "") ? "" : "and (f.dag_id is null or f.dag_id = ".$user_rights['group_id'].")";
-			$rolesql = ($user_rights['role_id'] == "") ? "" : "and (f.role_id is null or f.role_id = ".$user_rights['role_id'].")";
-			$sql .= " and e.delete_date is not null $dagsql $rolesql";
+			$dagsql = "";
+			if ($user_rights['group_id'] !== "") {
+				$dagsql = "AND (f.dag_id IS NULL OR f.dag_id = ?)";
+				$sql_params[] = $user_rights['group_id'];
+			}
+			$rolesql = "";
+			if ($user_rights['role_id'] !== "") {
+				$rolesql = "AND (f.role_id IS NULL OR f.role_id = ?)";
+				$sql_params[] = $user_rights['role_id'];
+			}
+			$sql .= " AND e.delete_date IS NOT NULL $dagsql $rolesql";
 		} else {
-			$sql .= " and e.delete_date is null and ff.folder_id " . (isinteger($folder_id) ? "= $folder_id" : "is null");
+			$sql .= " AND e.delete_date IS NULL AND ff.folder_id ";
+			// NOTE: = null does NOT resolve to IS NULL in parameterization
+			if (isinteger($folder_id)) {
+				$sql .= " = ?";
+				$sql_params[] = $folder_id;
+			} else {
+				$sql .= " IS NULL";
+			}
 		}
 
-		$result = $this->module->query($sql, []);
+		$result = $this->module->query($sql, $sql_params);
 
 		while ($row = db_fetch_assoc($result)) {
 			$response[] = $row["doc_id"];
