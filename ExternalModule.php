@@ -1,6 +1,6 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
 use ExternalModules\AbstractExternalModule;
 use REDCap;

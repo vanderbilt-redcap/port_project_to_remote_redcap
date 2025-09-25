@@ -1,7 +1,7 @@
 {
     "name": "Port Project to Remote REDCap",
     "description": "Ports a project and its logs to a remote REDCap instance",
-    "namespace": "PPtRR\\ExternalModule",
+    "namespace": "Vanderbilt\\PortProjectToRemoteREDCap\\ExternalModule",
     "documentation": "README.md",
     "framework-version": 16,
     "authors": [

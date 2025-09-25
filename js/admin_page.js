@@ -1,6 +1,6 @@
 $(document).ready(function() {
 
-	const module = ExternalModules.PPtRR.ExternalModule;
+	const module = ExternalModules.Vanderbilt.PortProjectToRemoteREDCap.ExternalModule;
   let remote_list = module.tt("remote_list");
   let source_project_list = module.tt("source_project_list");
   let pptr_endpoint = module.tt("pptr_endpoint");

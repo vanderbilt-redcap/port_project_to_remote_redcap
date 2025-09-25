@@ -1,6 +1,6 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
 $source_project_id = $_POST["source_project"];
 $remote_index = $_POST["remote_index"];

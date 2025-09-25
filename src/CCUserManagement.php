@@ -1,6 +1,6 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
 class CCUserManagement
 {

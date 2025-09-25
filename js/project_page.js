@@ -1,5 +1,5 @@
 $(document).ready(function() {
-	const module = ExternalModules.PPtRR.ExternalModule;
+	const module = ExternalModules.Vanderbilt.PortProjectToRemoteREDCap.ExternalModule;
   let cur_prog = 0;
   let bypass_design = false;
 

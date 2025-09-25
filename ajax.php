@@ -1,6 +1,6 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
 $remote_idx = is_null($_POST['remote_index']) ? null : (int) $_POST['remote_index'];
 $creds = $module->setCredentials($remote_idx);
