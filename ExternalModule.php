@@ -22,7 +22,7 @@ class ExternalModule extends AbstractExternalModule
 	// private $testing_mode = true;
 	private $testing_mode = false;
 
-	public function setCredentials($idx = 0, $source_project_id = null) {
+	public function setProjectCredentials($idx = 0, $source_project_id = null) {
 		// this function is equivalent to module instantiation for Proj object purposes
 		$creds = [];
 
@@ -33,10 +33,15 @@ class ExternalModule extends AbstractExternalModule
 			$creds[$part] = $project_settings[$part][$idx];
 		}
 
+		$this->setCredentials($creds);
 		$this->Proj = new \Project($source_project_id);
-		$this->creds = $creds;
 
 		return $creds;
+	}
+
+
+	public function setCredentials(array $credentials): void {
+		$this->creds = $credentials;
 	}
 
 

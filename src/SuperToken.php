@@ -44,6 +44,7 @@ class SuperToken
 		];
 
 		$this->super_creds = $super_creds;
+		$this->module->setCredentials($super_creds);
 	}
 
 
@@ -110,7 +111,6 @@ class SuperToken
 		];
 
 		$response = $this->module->curlPOST(
-			$this->super_creds,
 			$post_params
 		);
 
