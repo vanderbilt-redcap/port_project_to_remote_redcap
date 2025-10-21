@@ -49,7 +49,7 @@ switch ($task) {
 		$report_arr[$task] = $port_result;
 		break;
 	case "store_logs":
-		$meta_conf = $module->dumpLogsToFileRepository();
+		$meta_conf = $module->dumpLogBatchesToFileRepository();
 		$report_arr[$task] = $meta_conf;
 		if ($_POST['new_status']) {
 			// TODO: only address this after all actions are completed

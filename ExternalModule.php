@@ -9,6 +9,7 @@ use ZipArchive;
 require_once __DIR__ . '/src/CCFileRepository.php';
 require_once __DIR__ . '/src/SuperToken.php';
 require_once __DIR__ . '/src/CCUserManagement.php';
+require_once __DIR__ . '/src/QueryBatcher.php';
 
 class ExternalModule extends AbstractExternalModule
 {
@@ -94,8 +95,26 @@ class ExternalModule extends AbstractExternalModule
 
 	public function dumpLogs() {
 		$pid = $this->getSourceProjectId();
+		$sql_arrs = $this->getLogQueryStatements();
 
-		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?;";
+		$csv_map = [];
+		foreach ($sql_arrs as $name => $sql) {
+			$QB = new QueryBatcher(
+				$this,
+				$sql,
+				[$this->getSourceProjectId()]
+			);
+
+			$csv_map[$name] = $QB->dumpTableToCSV($this->queryWrapper($sql, [$pid]));
+		}
+		$zip_loc = $this->makeZip($csv_map);
+
+		return [$pid, $zip_loc];
+	}
+
+
+	public function getLogQueryStatements() {
+		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?";
 
 		$em_table_join = <<<_SQL
 						INNER JOIN redcap_external_modules AS em
@@ -111,7 +130,7 @@ class ExternalModule extends AbstractExternalModule
 		$em_log_sql .= " WHERE project_id = ?";
 
 		$log_table = $this->framework->getLogTable();
-		$log_sql = "SELECT * FROM $log_table WHERE project_id = ?;";
+		$log_sql = "SELECT * FROM $log_table WHERE project_id = ?";
 
 		$data_quality_sql = <<<_SQL
 					SELECT * FROM redcap_data_quality_status AS rdqs
@@ -133,13 +152,7 @@ class ExternalModule extends AbstractExternalModule
 			"redcap_log_event" => $log_sql
 		];
 
-		$csv_map = [];
-		foreach ($sql_arrs as $name => $sql) {
-			$csv_map[$name] = $this->dumpTableToCSV($this->queryWrapper($sql, [$pid]));
-		}
-		$zip_loc = $this->makeZip($csv_map);
-
-		return [$pid, $zip_loc];
+		return $sql_arrs;
 	}
 
 
@@ -164,26 +177,6 @@ class ExternalModule extends AbstractExternalModule
 
 		// NOTE: $tmp_zip itself must be returned to keep the variable in scope or the associated file will be deleted
 		return $tmp_zip;
-	}
-
-
-	/*
-	 * @param array $arr Array of associative arrays in the format [["column_name" => "value"]]; passed by reference to save on memory
-	 */
-	public function dumpTableToCSV(array &$arr) {
-		$tmp = tmpfile();
-
-		if (!($arr)) {
-			return;
-		}
-
-		// dump header row
-		fputcsv($tmp, array_keys($arr[0]));
-
-		foreach ($arr as $row) {
-			fputcsv($tmp, $row);
-		}
-		return $tmp;
 	}
 
 
@@ -664,24 +657,28 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	public function dumpLogsToFileRepository() {
-		[$pid, $zip_pointer] = $this->dumpLogs();
-		$zip_loc = stream_get_meta_data($zip_pointer)['uri'];
+	public function dumpLogBatchesToFileRepository() {
+		$timestamp = date("Y-m-d_H.i.s");
+		$log_qs = $this->getLogQueryStatements();
 
-		$cfile_name = date("Y-m-d_H.i.s") . "-$pid-logs.zip";
-		$cfile = curl_file_create($zip_loc, 'application/zip', $cfile_name);
+		$max_batch_size = $this->getSystemSetting("local_memory_limit");
 
-		$post_params = [
-			"content" => "fileRepository",
-			"action" => "import",
-			"file" => $cfile,
-			"returnFormat" => "json",
-			"folder_id" => $this->getReservedFileRepoFolder()
-		];
+		$remote_server_idx = array_search($this->creds["remote_api_uri"], $this->getSystemSetting("super_remote_api_uri"));
+		$max_csv_size = $this->getSystemSetting("file_size_limit")[$remote_server_idx] ?? null;
 
-		$r =  $this->curlPOST($post_params, true);
+		foreach ($log_qs as $table => $sql) {
+			$QB = new QueryBatcher(
+				$this,
+				$sql,
+				[$this->getSourceProjectId()],
+				$max_batch_size,
+				$max_csv_size
+			);
 
-		return $r;
+			$file_prefix = "{$timestamp}_{$table}";
+
+			$QB->portAllBatches($file_prefix);
+		}
 	}
 
 
@@ -975,13 +972,19 @@ class ExternalModule extends AbstractExternalModule
 	}
 
 
-	private function queryWrapper(string $sql, array $params): array {
+	public function queryWrapper(string $sql, array $params): array {
 		$result = $this->framework->query($sql, $params);
+
+		$cur_size = 0;
 
 		$accumulator = [];
 		while ($row = $result->fetch_assoc()) {
 			$accumulator[] = $row;
+
+			$cur_size = strlen(serialize($accumulator));
+
 		}
+		$result->free();
 
 		return $accumulator;
 	}

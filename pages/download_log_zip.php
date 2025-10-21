@@ -1,5 +1,8 @@
 <?php
 
+// initialization step, not actually used
+$creds = $module->setProjectCredentials(0);
+
 [$pid, $zip_fp] = $module->dumpLogs();
 $zip_loc = stream_get_meta_data($zip_fp)['uri'];
 

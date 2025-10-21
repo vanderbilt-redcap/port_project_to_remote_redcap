@@ -1,7 +1,7 @@
 # Port Project to Remote REDCap
 
 Port Project to Remote REDCap is an external module to enable researchers to move their projects from their REDCap instance to a separate REDCap instance while retaining an audit trail.  
-This module ports the project metadata and records to the remote instance, as well as project and external module logs; logs are stored as individual CSV files for each table in a zip file. This zip file is stored in the file repository of the corresponding project on the remote instance.
+This module ports the project metadata and records to the remote instance, as well as project and external module logs[^em_module_logs_table_as_db]; logs are stored as individual CSV files for each table in a zip file. This zip file is stored in the file repository of the corresponding project on the remote instance.
 
 This module is intended to facilitate one-time migration of a project to a different REDCap instances. If your goal is to regularly sync data between REDCap projects, the [API Sync Module](https://github.com/vanderbilt-redcap/api-sync-module) may be more appropriate for your needs.
 
@@ -85,12 +85,16 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 
 While migration of file upload fields are supported, signature fields **will not be migrated**. This is _explicitly_ forbidden by the REDCap API. The signatures themselves will be stored in the reserved File Repository folder.
 
+Survey responses will ported as if they were regular entries on a data entry form, they will _not_ be marked as surveys on the ported project. Furthermore, survey links will _not_ magically redirect to your new project's location, you will likely want to perform redirects from your old server.
+
 Log records associated with the project are collated locally in temporary files prior to being transferred to the remote instance; it's possible you may be limited by your instance's hardware.  
 Additionally, you may be limited by the remote server's file upload settings (by default, the File Repository has "unlimited" capacity but individual files are limited to 128MB).
 
 If the source project imposed data quality rules _after_ collecting data that _doesn't_ meet those data quality rules, those data will _not_ be transferred to the target project.
 
 Logs are **not** injected into the target project's relevant tables, this may alter expected behavior of some external modules.[^em_module_logs_table_as_db]
+
+Modules are not enabled and their settings are not automatically imported, these will need to be performed manually.
 
 Migration of data to an _earlier_ version of REDCap is not explicitly supported and may have unexpected behavior.  
 Cloud storage of files is not _explicitly_ supported whether on the local or remote REDCap instances (the latter may work, but this is entirely untested).
@@ -106,4 +110,4 @@ The contents of the history icon next to fields will be erased, this is consider
 
 [^api_token_user]: Creating this API token for a user specifically created for API tasks is highly recommended to aid in identifying log traffic created by this module.
 
-[^em_module_logs_table_as_db]: A small number of modules use this table as a "database", as this table is not injected into the remote instance, you may see odd behavior after transfer.
+[^em_module_logs_table_as_db]: A small number of modules use this table as a "database", as this table is not injected into the remote instance, you may see odd behavior in these modules after transfer.

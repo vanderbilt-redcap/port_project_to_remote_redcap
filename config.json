@@ -18,6 +18,16 @@
             "type": "text"
         },
         {
+            "name": "Local Memory Limit can be set to help prevent out of memory errors.",
+            "key": "local_memory_limit_desc",
+            "type": "descriptive"
+        },
+        {
+            "name": "Local Memory Limit (MB)",
+            "key": "local_memory_limit",
+            "type": "text"
+        },
+        {
             "name": "Target Remote Server Credentials",
             "key": "system_target_remotes",
             "type": "sub_settings",
@@ -33,6 +43,16 @@
                 {
                     "name": "Remote Super Token",
                     "key": "remote_super_token",
+                    "type": "text"
+                },
+                {
+                    "name": "File size limit should be no greater than the File Repository max upload file size on your <b>destination</b> server (see: Control Center > File Upload Settings); this field determines the largest log file size to generate. If left blank, it will use the limit for <i>this</i> server.",
+                    "key": "file_size_limit_desc",
+                    "type": "descriptive"
+                },
+                {
+                    "name": "File size limit",
+                    "key": "file_size_limit",
                     "type": "text"
                 }
         ]}
