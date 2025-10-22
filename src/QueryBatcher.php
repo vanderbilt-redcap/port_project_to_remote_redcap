@@ -70,8 +70,6 @@ class QueryBatcher
 			$this->query_params
 		);
 
-		// var_dump($first_5);
-
 		$end = memory_get_usage();
 
 		$size = ((abs($end - $start) / $sample_first) * $this->nrow);
@@ -95,18 +93,11 @@ class QueryBatcher
 
 
 	public function queryBatch(int $batch_number) {
-		// TODO: detect if final batch, truncate rows
-
 		$batch_start = ($batch_number - 1) * $this->rows_per_batch;
-		$batch_end = $batch_start + $this->rows_per_batch;
-
-		var_dump("running batch {$batch_number}, from {$batch_start} to {$batch_end}");
 
 		$limits = " LIMIT {$this->rows_per_batch} OFFSET {$batch_start}";
 
 		$batch_sql = $this->input_query . $limits;
-		var_dump($batch_sql);
-		echo(str_replace(" = ?", " = 20", $batch_sql));
 
 		$batch_result = $this->module->queryWrapper($batch_sql, $this->query_params);
 
@@ -114,7 +105,6 @@ class QueryBatcher
 	}
 
 	public function portBatch($batch_result, string $file_name) {
-
 		if ($this->nrow == 0) {
 			// TODO: is a csv containing only a header useful to indicate a port was attempted?
 			return;
@@ -137,7 +127,6 @@ class QueryBatcher
 		}
 
 		$tmp_csv_path = stream_get_meta_data($tmp_csv)['uri'];
-		$foo = stream_get_meta_data($tmp_csv);
 
 		if (!str_ends_with($file_name, ".csv")) {
 			$file_name .= ".csv";
@@ -153,6 +142,8 @@ class QueryBatcher
 			"folder_id" => $remote_folder_id
 		];
 
+		// NOTE: response for file import is just empty string on success
+		// TODO: parse and deliver summary of files delivered to frontend
 		$response = $this->module->curlPOST($post_params, true);
 
 		fclose($tmp_csv);
@@ -210,9 +201,5 @@ class QueryBatcher
 
 			$this->portBatch($batch_result, $file_name);
 		}
-
 	}
-
-
-
 }
