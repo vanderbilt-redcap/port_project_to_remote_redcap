@@ -1,7 +1,7 @@
 # Port Project to Remote REDCap
 
 Port Project to Remote REDCap is an external module to enable researchers to move their projects from their REDCap instance to a separate REDCap instance while retaining an audit trail.  
-This module ports the project metadata and records to the remote instance, as well as project and external module logs[^em_module_logs_table_as_db]; logs are stored as individual CSV files for each table in a zip file. This zip file is stored in the file repository of the corresponding project on the remote instance.
+This module ports the project metadata and records to the remote instance, as well as project and external module logs[^em_module_logs_table_as_db]; logs are stored as individual CSV files for each table in the file repository of the corresponding project on the remote instance.
 
 This module is intended to facilitate one-time migration of a project to a different REDCap instances. If your goal is to regularly sync data between REDCap projects, the [API Sync Module](https://github.com/vanderbilt-redcap/api-sync-module) may be more appropriate for your needs.
 
@@ -19,9 +19,14 @@ This module is intended to facilitate one-time migration of a project to a diffe
 
 - **Warning Text**: Text that appears at the top of the "Copy Project to Remote REDCap" page, intended to serve as a reminder to double check any data governance policies.
   - If left blank, this field defaults to: "If you are moving your project to a REDCap instance that is outside of your organization's control, please be aware of any data governance policies that may restrict data transfer by institution or region."
+- **Local Memory Limit (MB)**: The size (in MB) to limit RAM usage to when collating log data for export. Lowering this may prevent "out of memory errors", increasing this will result in fewer, larger log export files.
+  - If left blank, this will default to 2 GB.
 - **Target Remote Server Credentials**: Used to facilitate creation of a target project on the remote REDCap server. The target project is created from the source project's XML[^xml_import].
-  - **Remote API URI**: The URL for the API endpoint of the REDCap server to which you are trying to port the project, e.g. `https://my.redcap.edu/api/`; this _must_ end with `/api/`.
+  - **Remote API URI**: The URL for the API endpoint of the REDCap server to which you are trying to port the project, e.g. `https://my.redcap.edu/api/`; this **must** end with `/api/`.
   - **Remote Super Token**[^api_token_revocation_rec]: The Super API token associated with the remote REDCap instance, this token allows automated target project creation.
+  - **File Size Limit: The size (in MB) to which a log csv will be limited to, files that exceed this limit will be split in half before being sent to the target project.
+    - If left blank, this will default to the value for your *source* server, which is set in **Control Center > File Upload Settings > File Repository upload max file size**. The value for your server typically defaults to 128 MB.
+    - This value **must** be no greater than the File Repository upload max file size on your target server!
 
 ## Project Configuration
 
@@ -32,7 +37,7 @@ This module is intended to facilitate one-time migration of a project to a diffe
 
 ### Creating a Target Project on the Remote Instance
 
-If you are able, it is highly recommended to create a Super API token[^api_token_user] on the target server.
+If you are able, it is **highly** recommended to create a Super API token[^api_token_user] on the target server.
 
 #### With a Super API Token
 
@@ -71,7 +76,7 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 - `port_file_repository`: All contents of the source project's file repository, as well as directory structure will be ported.
   - The module will create a reserved folder for itself in the target project titled "PPtRR_reserved_folder".
   - Running this repeatedly will result in duplicating files and directories.
-- `store_logs`: Create a zip file containing logs relevant to the source project. This zip file will timestamped and stored in the target project's reserved file repository as <YYYY-MM-DD_HH.MM.SS-logs.zip>. All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`.
+- `store_logs`: Create files containing database rows relevant to the source project. These files will timestamped and stored in the target project's reserved file repository as `{YYYY-MM-DD_HH.MM.SS}_{table_name}.{memory_batch}.{file_size_batch}.csv.` All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`.
   - `redcap_projects.csv`
   - `redcap_log_event.csv`
   - `redcap_data_quality.csv`: A combination of `redcap_data_quality_status` and `redcap_data_quality_resolution`, `INNER JOIN`'d on `status_id`
@@ -87,7 +92,7 @@ While migration of file upload fields are supported, signature fields **will not
 
 Survey responses will ported as if they were regular entries on a data entry form, they will _not_ be marked as surveys on the ported project. Furthermore, survey links will _not_ magically redirect to your new project's location, you will likely want to perform redirects from your old server.
 
-Log records associated with the project are collated locally in temporary files prior to being transferred to the remote instance; it's possible you may be limited by your instance's hardware.  
+Log records associated with the project are collated locally in temporary files prior to being transferred to the remote instance; it's possible you may be limited by your instance's hardware. Use the **Local Memory Limit** system setting if you run into issues here.  
 Additionally, you may be limited by the remote server's file upload settings (by default, the File Repository has "unlimited" capacity but individual files are limited to 128MB).
 
 If the source project imposed data quality rules _after_ collecting data that _doesn't_ meet those data quality rules, those data will _not_ be transferred to the target project.
