@@ -51,7 +51,7 @@
                     "type": "descriptive"
                 },
                 {
-                    "name": "File size limit",
+                    "name": "File Size Limit (MB)",
                     "key": "file_size_limit",
                     "type": "text"
                 }

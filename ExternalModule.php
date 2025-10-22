@@ -659,12 +659,15 @@ class ExternalModule extends AbstractExternalModule
 
 	public function dumpLogBatchesToFileRepository() {
 		$timestamp = date("Y-m-d_H.i.s");
+		$bytes_per_mb = 1024**2;
 		$log_qs = $this->getLogQueryStatements();
 
-		$max_batch_size = $this->getSystemSetting("local_memory_limit");
+		$lml_setting = $this->getSystemSetting("local_memory_limit");
+		$max_batch_size = (is_numeric($lml_setting)) ? ($lml_setting * $bytes_per_mb) : null;
 
 		$remote_server_idx = array_search($this->creds["remote_api_uri"], $this->getSystemSetting("super_remote_api_uri"));
-		$max_csv_size = $this->getSystemSetting("file_size_limit")[$remote_server_idx] ?? null;
+		$fsl_setting = $this->getSystemSetting("file_size_limit")[$remote_server_idx] ?? null;
+		$max_csv_size = (is_numeric($fsl_setting)) ? ($fsl_setting * $bytes_per_mb) : null;
 
 		foreach ($log_qs as $table => $sql) {
 			$QB = new QueryBatcher(
