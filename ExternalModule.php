@@ -117,9 +117,9 @@ class ExternalModule extends AbstractExternalModule
 		$project_sql = "SELECT * FROM redcap_projects WHERE project_id = ?";
 
 		$em_table_join = <<<_SQL
-						INNER JOIN redcap_external_modules AS em
-						ON ema.external_module_id = em.external_module_id
-						_SQL;
+		INNER JOIN redcap_external_modules AS em
+			ON ema.external_module_id = em.external_module_id
+		_SQL;
 
 		$em_sql = <<<_SQL
 			SELECT *, em.directory_prefix FROM redcap_external_module_settings AS ema
@@ -130,6 +130,8 @@ class ExternalModule extends AbstractExternalModule
 		$em_log_sql = <<<_SQL
 			SELECT *, em.directory_prefix AS module_name FROM redcap_external_modules_log AS ema
 				{$em_table_join}
+				LEFT JOIN redcap_external_modules_log_parameters as emlp
+					ON ema.log_id = emlp.log_id
 				WHERE project_id = ?
 			_SQL;
 
