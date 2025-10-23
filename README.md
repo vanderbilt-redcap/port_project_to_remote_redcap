@@ -1,6 +1,14 @@
+# Beta release
+
+Please note that this module is in an **experimental beta** for public testing.
+
+Bug reports, requests, and suggestions are welcome, however...
+
+## **You should _not_ rely on this module for data migration or preservation!**
+
 # Port Project to Remote REDCap
 
-Port Project to Remote REDCap is an external module to enable researchers to move their projects from their REDCap instance to a separate REDCap instance while retaining an audit trail.  
+Port Project to Remote REDCap is an external module to enable researchers to move their projects from their REDCap instance to a separate REDCap instance while retaining an audit trail.
 This module ports the project metadata and records to the remote instance, as well as project and external module logs[^em_module_logs_table_as_db]; logs are stored as individual CSV files for each table in the file repository of the corresponding project on the remote instance.
 
 This module is intended to facilitate one-time migration of a project to a different REDCap instances. If your goal is to regularly sync data between REDCap projects, the [API Sync Module](https://github.com/vanderbilt-redcap/api-sync-module) may be more appropriate for your needs.
@@ -93,6 +101,8 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 ## Potential Limitations
 
 While migration of file upload fields are supported, signature fields **will not be migrated**. This is _explicitly_ forbidden by the REDCap API. The signatures themselves will be stored in the reserved File Repository folder.
+
+Images embedded in field descriptions (e.g. via rich text editor) will not render in the target project. This is a known bug in REDCap core. This module may temporarily implement a fix to this.
 
 Survey responses will ported as if they were regular entries on a data entry form, they will _not_ be marked as surveys on the ported project. Furthermore, survey links will _not_ magically redirect to your new project's location, you will likely want to perform redirects from your old server.
 
