@@ -76,7 +76,7 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 - `port_file_repository`: All contents of the source project's file repository, as well as directory structure will be ported.
   - The module will create a reserved folder for itself in the target project titled "PPtRR_reserved_folder".
   - Running this repeatedly will result in duplicating files and directories.
-- `store_logs`: Create files containing database rows relevant to the source project. These files will timestamped and stored in the target project's reserved file repository as `{YYYY-MM-DD_HH.MM.SS}_{table_name}.{memory_batch}.{file_size_batch}.csv.` All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`.
+- `store_logs`: Create files containing database rows relevant to the source project. These files will timestamped and stored in the target project's reserved file repository as `{YYYY-MM-DD_HH.MM.SS}_{table_name}_{memory_batch}.{file_size_batch}.csv.`[^file_batching_naming]. All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`. In some cases, these data are aggregated from multiples tables, often to disambiguate columns whose elements are likely meaningless on a different server (e.g. `event_id`). If a file contains data from multiple tables, columns from those tables will prefix the column name.
   - `redcap_projects.csv`
   - `redcap_log_event.csv`
   - `redcap_data_quality.csv`: A combination of `redcap_data_quality_status` and `redcap_data_quality_resolution`, `INNER JOIN`'d on `status_id`
@@ -85,6 +85,10 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
   - `redcap_external_module_settings.csv`: All entries in this table have the module's `directory_prefix` stored as an additional column for disambiguation.
     - Modules will not be activated in the target project, nor will their settings be automatically populated. A companion module may be created to support this task.
   - `redcap_external_modules_log.csv`[^em_module_logs_table_as_db]: All entries in this table have the module's `directory_prefix` stored as an additional column for disambiguation.
+  - `redcap_event_tables.csv`: An aggregate of information from `redcap_events_*` tables (`arms`, `metadata`, `forms`, `repeat`). Provided to serve as a lookup table to manually disambiguate columns that are likely meaningless on a different target server (e.g. `event_id`).
+  - `redcap_alerts`
+    - `redcap_alerts.csv`: An aggregate of information from `redcap_alerts` and `redcap_alerts_recurrence`. Likely be helpful as a lookup table for `redcap_alerts_sent.csv`
+    - `redcap_alerts_sent.csv`: An aggregate of `redcap_alerts_sent` and `redcap_alerts_sent_log` tables. This is split from `redcap_alerts.csv` to minimize file size.
 
 ## Potential Limitations
 
@@ -104,7 +108,7 @@ Modules are not enabled and their settings are not automatically imported, these
 Migration of data to an _earlier_ version of REDCap is not explicitly supported and may have unexpected behavior.  
 Cloud storage of files is not _explicitly_ supported whether on the local or remote REDCap instances (the latter may work, but this is entirely untested).
 
-The contents of the history icon next to fields will be erased, this is considered data quality and **is not retained.**
+The contents of the history icon next to fields will be erased, this is considered data quality and will not be accessible via the REDCap UI; the relevant content will be part of the `redcap_data_quality` csv files.
 
 ---
 # Footnotes
@@ -116,3 +120,5 @@ The contents of the history icon next to fields will be erased, this is consider
 [^api_token_user]: Creating this API token for a user specifically created for API tasks is highly recommended to aid in identifying log traffic created by this module.
 
 [^em_module_logs_table_as_db]: A small number of modules use this table as a "database", as this table is not injected into the remote instance, you may see odd behavior in these modules after transfer.
+
+[^file_batching_naming]: If the entire table fits within your memory limit, there will be no `_{memory_batch}`; likewise, if a generated file is within the file size limit, `.{file_size_batch}` will be omitted. If a generated file is large enough, it may need to be split multiple times resulting in files ending in `.1.1.csv` `.1.2.csv`. If a query results in no rows being returned, that file will not be ported (e.g., if your project has no alerts, `redcap_alerts.csv` and `redcap_alerts_sent.csv` will not appear in the target project's file repository).
