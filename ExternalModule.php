@@ -186,7 +186,96 @@ class ExternalModule extends AbstractExternalModule
 			"redcap_alerts_sent" => $alerts_sent_sql
 		];
 
-		return $sql_arrs;
+		$prefixed_sql_arrs = array_map(
+			fn ($input_sql) => $this->prefixTableNames($input_sql),
+			$sql_arrs
+		);
+
+		return $prefixed_sql_arrs;
+	}
+
+	/**
+	 * Given a SQL SELECT statement, prefix columns with their table names for better output in log dumps.
+	 *
+	 * Expands wildcards (global and table-scoped) and does not override column aliases in the provided SQL (but will duplicate the aliased column).
+	 * Replaces table aliases with the full table name.
+	 */
+	public function prefixTableNames(string $input_sql) {
+		$matches = [];
+		$match_count = preg_match_all("/(FROM|JOIN) ([^\s].*)([\s]|$)/Umi", $input_sql, $matches);
+		if ($match_count == 1) {
+			return $input_sql;
+		}
+		$tables = $matches[2];
+
+		// get all column names prefixed with table name
+		// adapted from https://stackoverflow.com/a/60835436/7418735
+		$in_placeholders = str_repeat('?,', count($tables) - 1) . '?';
+		$table_schema = "redcap";
+
+		$cols_sql = <<<_SQL
+			SELECT
+				CONCAT(table_name, ".", column_name) field_names
+			FROM
+				information_schema.columns
+			WHERE
+				table_schema = "{$table_schema}"
+				AND table_name IN({$in_placeholders});
+		_SQL;
+
+		$output = $this->queryWrapper($cols_sql, $tables);
+		$field_names = array_column($output, "field_names");
+
+		// alias detection
+		$matches = [];
+		$match_count = preg_match_all("/(FROM|JOIN) ([^\s].*) AS ([^\s].*)/mi", $input_sql, $matches);
+		$aliases = array_combine($matches[3], $matches[2]);
+
+		$dealiased_sql = $input_sql;
+
+		foreach ($aliases as $alias => $actual) {
+			// using regex instead of str_replace as word boundarys must be respected
+			// e.g. rdqr and rdqru may co-exist
+			$dealiased_sql = preg_replace("/\b{$alias}\b/", $actual, $dealiased_sql);
+		}
+
+		// separate literal * into table_name.*
+		$table_scoped_wildcards = implode(
+			", ",
+			array_map(
+				fn ($table_name) => "{$table_name}.*",
+				$tables
+			)
+		);
+		$prefixed_sql = preg_replace("/(,|\b|\s)\*(\b|\s|,)/U", "\$1{$table_scoped_wildcards}\$2", $dealiased_sql);
+
+		$match = [];
+		preg_match("/SELECT.*FROM/", $prefixed_sql, $match);
+		$select_portion = $match[0];
+		$select_portion_orig = $select_portion;
+
+		// in select statement only to avoid expanding ON ta.col = tb.col
+		foreach ($tables as $table) {
+
+			// replace all table's with expansion for each column in table
+			if (strpos($prefixed_sql, "{$table}.*") !== false) {
+				$table_cols = array_filter(
+					$field_names,
+					fn ($column_name) => starts_with($column_name, "{$table}.")
+				);
+
+				$select_portion = str_replace("{$table}.*", implode(", ", $table_cols), $select_portion);
+				// NOTE: injecting "foo.bar AS 'foo.bar'" here would result in potential "foo.bar AS 'foo.bar' AS manual_alias"
+			}
+
+			// replace individual columns with table-prefixed version if they don't have an alias in the input SQL
+			$table_column_regex = "/\b({$table}\.[^\s,]+)\b(?!\s+AS)/";
+			$select_portion = preg_replace($table_column_regex, "\$1 AS `\$1`", $select_portion);
+		}
+
+		$prefixed_sql = str_replace($select_portion_orig, $select_portion, $prefixed_sql);
+
+		return $prefixed_sql;
 	}
 
 
@@ -693,7 +782,7 @@ class ExternalModule extends AbstractExternalModule
 
 	public function dumpLogBatchesToFileRepository() {
 		$timestamp = date("Y-m-d_H.i.s");
-		$bytes_per_mb = 1024**2;
+		$bytes_per_mb = 1024 ** 2;
 		$log_qs = $this->getLogQueryStatements();
 
 		$lml_setting = $this->getSystemSetting("local_memory_limit");
