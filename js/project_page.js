@@ -1,5 +1,5 @@
 $(document).ready(function() {
-	const module = ExternalModules.PPtRR.ExternalModule;
+	const module = ExternalModules.Vanderbilt.PortProjectToRemoteREDCap.ExternalModule;
   let cur_prog = 0;
   let bypass_design = false;
 
@@ -11,6 +11,8 @@ $(document).ready(function() {
   const pptr_endpoint = module.tt("pptr_endpoint");
   const remote_list = module.tt("remote_list");
 
+	populateRecordRange();
+
   buildAccordionTaskList();
 
 	let remote_select = $("#remote_select")[0];
@@ -20,6 +22,10 @@ $(document).ready(function() {
   });
 
 	const form = $("#crispi_form")[0];
+
+	$("input#port_record_range").click((el) => {
+		exposeRecordRange(el);
+	});
 
 	// NOTE: bugs in this section will result in a redirect due to altering the form
 	$(form).on('submit', (event) => {
@@ -227,9 +233,9 @@ $(document).ready(function() {
 			}
 
 		} catch(error) {
-      console.log(error);
+			// console.log(error);
 			console.log(`${idx} is not json`);
-			console.log(msg);
+			// console.log(msg);
 		} finally {
 			target_option.text(
 				`${target_option.text()} :: ${better_title}`
@@ -351,6 +357,12 @@ $(document).ready(function() {
 			"default": 1
 		};
 
+		const port_record_range = {
+			"name": "port_record_range",
+			"label": "Port record range",
+			"default": 0
+		};
+
 		const task_option_map = {
 			"update_remote_project_design": [
 				{
@@ -361,7 +373,7 @@ $(document).ready(function() {
 				delete_remote_records_info,
 				delete_remote_user_roles_info
 			],
-			"port_records": [delete_remote_records_info, port_file_fields],
+			"port_records": [delete_remote_records_info, port_file_fields, port_record_range],
 			"port_users": [delete_remote_user_roles_info],
 			"port_dags": [],
 			"port_file_repository": [],
@@ -442,4 +454,70 @@ $(document).ready(function() {
 		return;
 	}
 
+	async function exposeRecordRange(el) {
+		let v = $("input#port_record_range").val()
+		let target = $("#record_range_div");
+		const task_name = "get_remote_project_record_ids";
+
+		// TODO: toggle does not actually alter the value so this is unreliable
+		if (v == 1) {
+			target.show();
+		} else {
+			target.hide();
+		}
+
+
+		await $.ajax({
+			type: "POST",
+			url: pptr_endpoint,
+			data: {
+				"task": task_name,
+				"redcap_csrf_token": redcap_csrf_token
+				// pass all form items
+				// ...Object.fromEntries(formData.entries())
+			},
+			success: (msg) => {
+				let parsed = JSON.parse(msg);
+
+				let resp_arr = parsed[task_name]["remote_project_record_ids"];
+				let range_el = $("#record_range_on_remote");
+
+				range_el.html(
+					`Target project current records [lowest, highest]: <b>[${resp_arr['min']}, ${resp_arr['max']}]</b>`
+				);
+			}
+		});
+	}
+
+
+	async function populateRecordRange() {
+		const task_name = "get_local_project_record_ids";
+
+		await $.ajax({
+			type: "POST",
+			url: pptr_endpoint,
+			data: {
+				"task": task_name,
+				"redcap_csrf_token": redcap_csrf_token
+			},
+			success: (msg) => {
+				let parsed = JSON.parse(msg);
+				let resp_arr = parsed[task_name]["local_project_record_ids"];
+
+				let record_id_dropdown_data = $.map(resp_arr, (i) => {
+					return {
+						id: i,
+						text: i
+					}
+				});
+
+				for (const el_id of ["#record_range_start", "#record_range_end"]) {
+					$(el_id).select2({
+						data: record_id_dropdown_data
+					});
+				}
+			}
+
+		});
+	}
 });

@@ -1,6 +1,6 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
 class SuperToken
 {
@@ -44,6 +44,7 @@ class SuperToken
 		];
 
 		$this->super_creds = $super_creds;
+		$this->module->setCredentials($super_creds);
 	}
 
 
@@ -58,18 +59,29 @@ class SuperToken
 		// PROJECT_ID = $this->source_project_id;
 		define('PROJECT_ID', $this->source_project_id);
 		$xml = \Project::getProjectXML(
-			/* $project_id = */ $this->source_project_id,
+			/* $project_id = */
+			$this->source_project_id,
 			// this makes all toggles except $exportAllCustomMetadataOptions irrelevant,
-			/* $returnMetadataOnly */ true,
-			/* $records = */ null,
-			/* $fields = */ null,
-			/* $events = */ null,
-			/* $groups = */ null,
-			/* $outputDags = */ null,
-			/* $outputSurveyFields = */ null,
-			/* $filterLogic = */ null,
-			/* $exportFiles = */ null,
-			/* $exportAllCustomMetadataOptions = */ true
+			/* $returnMetadataOnly */
+			true,
+			/* $records = */
+			null,
+			/* $fields = */
+			null,
+			/* $events = */
+			null,
+			/* $groups = */
+			null,
+			/* $outputDags = */
+			null,
+			/* $outputSurveyFields = */
+			null,
+			/* $filterLogic = */
+			null,
+			/* $exportFiles = */
+			null,
+			/* $exportAllCustomMetadataOptions = */
+			true
 		);
 
 		// PROJECT_ID = $real_project_id;
@@ -99,7 +111,6 @@ class SuperToken
 		];
 
 		$response = $this->module->curlPOST(
-			$this->super_creds,
 			$post_params
 		);
 

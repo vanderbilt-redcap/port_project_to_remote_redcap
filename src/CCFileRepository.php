@@ -1,9 +1,9 @@
 <?php
 
-namespace PPtRR\ExternalModule;
+namespace Vanderbilt\PortProjectToRemoteREDCap\ExternalModule;
 
-class CCFileRepository {
-
+class CCFileRepository
+{
 	private $module;
 	/*
 	 * File Repo directory structure is a stored in the database as a singly linked list wherein nodes refer to their parent rather than the typical discrete math toy exercises where parents refer to children.
@@ -19,29 +19,48 @@ class CCFileRepository {
 	}
 
 
-	public function getFileRepositoryFolderContents($folder_id = null, $project_id = PROJECT_ID) {
+	public function getFileRepositoryFolderContents($folder_id = null) {
+		$project_id = $this->module->getSourceProjectId();
 
 		$recycle_bin = false;
 
 		$response = [];
 
-		$sql = "select d.docs_id, d.docs_name, d.docs_size, e.stored_date, d.docs_comment, ff.folder_id, e.delete_date, e.doc_id
-			from redcap_docs_to_edocs de, redcap_edocs_metadata e, redcap_docs d
-			left join redcap_docs_attachments a on a.docs_id = d.docs_id
-			left join redcap_docs_folders_files ff on ff.docs_id = d.docs_id
-			left join redcap_docs_folders f on ff.folder_id = f.folder_id
-			where d.project_id = $project_id and d.export_file = 0 and a.docs_id is null
-			and de.docs_id = d.docs_id and de.doc_id = e.doc_id and e.date_deleted_server is null";
+		$sql = <<<_SQL
+			SELECT d.docs_id, d.docs_name, d.docs_size, e.stored_date, d.docs_comment, ff.folder_id, e.delete_date, e.doc_id
+			FROM redcap_docs_to_edocs de, redcap_edocs_metadata e, redcap_docs d
+			LEFT JOIN redcap_docs_attachments a ON a.docs_id = d.docs_id
+			LEFT JOIN redcap_docs_folders_files ff ON ff.docs_id = d.docs_id
+			LEFT JOIN redcap_docs_folders f ON ff.folder_id = f.folder_id
+			WHERE d.project_id = ? AND d.export_file = 0 AND a.docs_id IS NULL
+			AND de.docs_id = d.docs_id AND de.doc_id = e.doc_id AND e.date_deleted_server IS NULL
+		_SQL;
+		$sql_params = [$project_id];
 		if ($recycle_bin) {
 			// Recycle bin: Show ALL files from ALL folders (flat display) - apply DAG/Role restriction here since we normally apply it at folder level outside the Recycle Bin
-			$dagsql = ($user_rights['group_id'] == "") ? "" : "and (f.dag_id is null or f.dag_id = ".$user_rights['group_id'].")";
-			$rolesql = ($user_rights['role_id'] == "") ? "" : "and (f.role_id is null or f.role_id = ".$user_rights['role_id'].")";
-			$sql .= " and e.delete_date is not null $dagsql $rolesql";
+			$dagsql = "";
+			if ($user_rights['group_id'] !== "") {
+				$dagsql = "AND (f.dag_id IS NULL OR f.dag_id = ?)";
+				$sql_params[] = $user_rights['group_id'];
+			}
+			$rolesql = "";
+			if ($user_rights['role_id'] !== "") {
+				$rolesql = "AND (f.role_id IS NULL OR f.role_id = ?)";
+				$sql_params[] = $user_rights['role_id'];
+			}
+			$sql .= " AND e.delete_date IS NOT NULL $dagsql $rolesql";
 		} else {
-			$sql .= " and e.delete_date is null and ff.folder_id " . (isinteger($folder_id) ? "= $folder_id" : "is null");
+			$sql .= " AND e.delete_date IS NULL AND ff.folder_id ";
+			// NOTE: = null does NOT resolve to IS NULL in parameterization
+			if (isinteger($folder_id)) {
+				$sql .= " = ?";
+				$sql_params[] = $folder_id;
+			} else {
+				$sql .= " IS NULL";
+			}
 		}
 
-		$result = $this->module->query($sql, []);
+		$result = $this->module->query($sql, $sql_params);
 
 		while ($row = db_fetch_assoc($result)) {
 			$response[] = $row["doc_id"];
@@ -50,11 +69,12 @@ class CCFileRepository {
 		return $response;
 	}
 
-	function getLocalFileRepo() {
+	public function getLocalFileRepo() {
 		return $this->local_file_repo;
 	}
 
-	function buildLocalFileRepo($project_id = PROJECT_ID) {
+	public function buildLocalFileRepo() {
+		$project_id = $this->module->getSourceProjectId();
 
 		// folder contents
 		$sql = <<<_SQL
@@ -67,23 +87,25 @@ class CCFileRepository {
 		return $this->mysqlToArr($mysql_result);
 	}
 
-	function createRemoteFolders() {
+	public function createRemoteFolders() {
 		// NOTE: this function can lead to contents of the file repo being duplicated on every run if there are any child directories
 		// TODO: create tree structure to allow mapping of remote structure to local by name to avoid duplication if remote repo is not empty
 		// NOTE: for users to delete a dir in the UI, it must contain no files but can contain empty directories
 		// TODO: child directories are not marked as deleted when a parent directory is deleted
 		// asking the API for contents of a deleted folder ID will return nothing, but (n+1)'th nested children will happily return their own children
 		$this->mapRemoteToLocal();
-		foreach($this->local_file_repo as &$local_folder) {
+		foreach ($this->local_file_repo as &$local_folder) {
 			$response = $this->createRemoteFolder($local_folder);
 
 			// TODO: is it possible to hit this condition?
-			if ($response === "already_mapped") { continue; }
+			if ($response === "already_mapped") {
+				continue;
+			}
 			$local_folder["remote_info"] = $response;
 		}
 	}
 
-	function createRemoteFolder(&$input_folder) {
+	public function createRemoteFolder(&$input_folder) {
 
 		if ($input_folder["remote_info"]["folder_id"]) {
 			return $input_folder["remote_info"];
@@ -116,13 +138,13 @@ class CCFileRepository {
 		];
 
 		// TODO: handle if this dir exists
-		$raw_response = $this->module->curlPOST(null, $post_params);
+		$raw_response = $this->module->curlPOST($post_params);
 		$response = json_decode($raw_response, true);
 
 		if (!is_null($response["error"])) {
 			$err = $response["error"];
 			// NOTE: this shouldn't actually happen
-			if(str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
+			if (str_ends_with($err, "could not be created because a folder with that same name already exists in this directory. You should create a new folder with a different name instead.")) {
 				// find remote folder id with this name
 				$this->mapRemoteToLocal();
 
@@ -138,11 +160,11 @@ class CCFileRepository {
 		return $response;
 	}
 
-	function mapRemoteToLocal() {
+	public function mapRemoteToLocal() {
 		$remote_file_repo = json_decode($this->module->getRemoteFileRepositoryDirectory(), true);
 
-		foreach($this->local_file_repo as $_ => &$local_folder) {
-			foreach($remote_file_repo as $_ => $remote_folder) {
+		foreach ($this->local_file_repo as $_ => &$local_folder) {
+			foreach ($remote_file_repo as $_ => $remote_folder) {
 				// TODO: what if subdirs have identical names?
 				if ($local_folder["name"] == $remote_folder["name"]) {
 					$local_folder["remote_info"] = $remote_folder;
@@ -151,11 +173,19 @@ class CCFileRepository {
 		}
 	}
 
-	function getRemoteFolderId($local_folder_id) {
+	public function getRemoteFolderId($local_folder_id) {
 		return;
 	}
 
-	function resolveDocIdFromFileRepo($docs_id): int {
+
+	public function getRemoteFileRepositoryTree($node_id = null) {
+
+	}
+
+	public function getRemoteFileRepositoryTreeRecursive($node_id = null) {
+	}
+
+	public function resolveDocIdFromFileRepo($docs_id): int {
 
 		$sql = <<<_SQL
 			SELECT doc_id FROM redcap_docs_to_edocs
