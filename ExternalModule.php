@@ -121,13 +121,17 @@ class ExternalModule extends AbstractExternalModule
 						ON ema.external_module_id = em.external_module_id
 						_SQL;
 
-		$em_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_module_settings AS ema ";
-		$em_sql .= $em_table_join;
-		$em_sql .= " WHERE project_id = ?";
+		$em_sql = <<<_SQL
+			SELECT *, em.directory_prefix FROM redcap_external_module_settings AS ema
+				{$em_table_join}
+				WHERE project_id = ?
+			_SQL;
 
-		$em_log_sql = "SELECT *, em.directory_prefix as module_name FROM redcap_external_modules_log AS ema ";
-		$em_log_sql .= $em_table_join;
-		$em_log_sql .= " WHERE project_id = ?";
+		$em_log_sql = <<<_SQL
+			SELECT *, em.directory_prefix AS module_name FROM redcap_external_modules_log AS ema
+				{$em_table_join}
+				WHERE project_id = ?
+			_SQL;
 
 		$log_table = $this->framework->getLogTable();
 		$log_sql = "SELECT * FROM $log_table WHERE project_id = ?";
