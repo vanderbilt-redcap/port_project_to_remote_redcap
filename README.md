@@ -21,7 +21,7 @@ This module is intended to facilitate one-time migration of a project to a diffe
 <!-- - Obtain this module from the Consortium [REDCap Repo](https://redcap.vanderbilt.edu/consortium/modules/index.php) from the REDCap Control Center. -->
 
 ## Manual Installation
-- Clone this repo into `<redcap-root>/modules/port_project_to_remote_instance_v0.0.0`.
+- Clone this repo into `<redcap-root>/modules/port_project_to_remote_redcap_v0.0.0`.
 
 ## System Configuration
 
