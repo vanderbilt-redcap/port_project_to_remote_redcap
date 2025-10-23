@@ -134,26 +134,54 @@ class ExternalModule extends AbstractExternalModule
 			_SQL;
 
 		$log_table = $this->framework->getLogTable();
-		$log_sql = "SELECT * FROM $log_table WHERE project_id = ?";
+		$log_sql = "SELECT * FROM {$log_table} WHERE project_id = ?";
 
 		$data_quality_sql = <<<_SQL
-					SELECT * FROM redcap_data_quality_status AS rdqs
-						INNER JOIN redcap_data_quality_resolutions AS rdqr
-						ON rdqs.status_id = rdqr.status_id
-						WHERE project_id = ?
-					_SQL;
+			SELECT * FROM redcap_data_quality_status AS rdqs
+				LEFT JOIN redcap_data_quality_resolutions AS rdqr
+				ON rdqs.status_id = rdqr.status_id
+				LEFT JOIN redcap_data_quality_rules AS rdqru
+				ON rdqs.rule_id = rdqru.rule_id
+				WHERE rdqs.project_id = ?
+		_SQL;
 
-		// TODO: event_id is still ambiguous, field comments will have partial information loss
-		// TODO: create compound table from redcap_events_metadata, redcap_arms, redcap_projects
+		// create compound table from redcap_events_metadata, redcap_arms, redcap_projects
+		$event_metadata_sql = <<<_SQL
+			SELECT rea.*, rem.*, ref.*, rer.* FROM redcap_events_arms AS rea
+				LEFT JOIN redcap_events_metadata as rem
+				ON rea.arm_id = rem.arm_id
+				LEFT JOIN redcap_events_forms as ref
+				ON rem.event_id = ref.event_id
+				LEFT JOIN redcap_events_repeat as rer
+				ON rem.event_id = rer.event_id
+				WHERE rea.project_id = ?
+		_SQL;
 
-		// TODO: alerts and alerts_sent
+		$alerts_sql = <<<_SQL
+			SELECT * FROM redcap_alerts AS ra
+				LEFT JOIN redcap_alerts_recurrence AS rar
+				ON ra.alert_id = rar.alert_id
+				WHERE ra.project_id = ?
+		_SQL;
+
+		$alerts_sent_sql = <<<_SQL
+			SELECT ras.*, rasl.* FROM redcap_alerts AS ra
+				INNER JOIN redcap_alerts_sent AS ras
+				ON ra.alert_id = ras.alert_id
+				INNER JOIN redcap_alerts_sent_log AS rasl
+				ON ras.alert_sent_id = rasl.alert_sent_id
+				WHERE ra.project_id = ?
+		_SQL;
 
 		$sql_arrs = [
 			"redcap_projects" => $project_sql,
 			"redcap_external_module_settings" => $em_sql,
 			"redcap_external_modules_log" => $em_log_sql,
 			"redcap_data_quality" => $data_quality_sql,
-			"redcap_log_event" => $log_sql
+			"redcap_log_event" => $log_sql,
+			"redcap_event_tables" => $event_metadata_sql,
+			"redcap_alerts" => $alerts_sql,
+			"redcap_alerts_sent" => $alerts_sent_sql
 		];
 
 		return $sql_arrs;
