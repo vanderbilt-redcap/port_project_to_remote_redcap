@@ -32,7 +32,7 @@ This module is intended to facilitate one-time migration of a project to a diffe
 - **Target Remote Server Credentials**: Used to facilitate creation of a target project on the remote REDCap server. The target project is created from the source project's XML[^xml_import].
   - **Remote API URI**: The URL for the API endpoint of the REDCap server to which you are trying to port the project, e.g. `https://my.redcap.edu/api/`; this **must** end with `/api/`.
   - **Remote Super Token**[^api_token_revocation_rec]: The Super API token associated with the remote REDCap instance, this token allows automated target project creation.
-  - **File Size Limit: The size (in MB) to which a log csv will be limited to, files that exceed this limit will be split in half before being sent to the target project.
+  - **File Size Limit**: The size (in MB) to which a log csv will be limited to, files that exceed this limit will be split in half before being sent to the target project.
     - If left blank, this will default to the value for your *source* server, which is set in **Control Center > File Upload Settings > File Repository upload max file size**. The value for your server typically defaults to 128 MB.
     - This value **must** be no greater than the File Repository upload max file size on your target server!
 
@@ -84,7 +84,7 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 - `port_file_repository`: All contents of the source project's file repository, as well as directory structure will be ported.
   - The module will create a reserved folder for itself in the target project titled "PPtRR_reserved_folder".
   - Running this repeatedly will result in duplicating files and directories.
-- `store_logs`: Create files containing database rows relevant to the source project. These files will timestamped and stored in the target project's reserved file repository as `{YYYY-MM-DD_HH.MM.SS}_{table_name}_{memory_batch}.{file_size_batch}.csv.`[^file_batching_naming]. All logs named after the associated table and are filtered with `WHERE project_id = <source project id>`. In some cases, these data are aggregated from multiples tables, often to disambiguate columns whose elements are likely meaningless on a different server (e.g. `event_id`). If a file contains data from multiple tables, columns from those tables will prefix the column name.
+- `store_logs`: Create files containing database rows relevant to the source project. These files will timestamped and stored in the target project's reserved file repository as `{YYYY-MM-DD_HH.MM.SS}_{table_name}_{memory_batch}.{file_size_batch}.csv.`[^file_batching_naming]. All logs are named after the associated tables and are filtered with `WHERE project_id = <source project id>`. In some cases, these data are aggregated from multiples tables, often to disambiguate columns whose elements are likely meaningless on a different server (e.g. `event_id`). If a file contains data from multiple tables, columns will be prefixed with the source table's name.
   - `redcap_projects.csv`
   - `redcap_log_event.csv`
   - `redcap_data_quality.csv`: A combination of `redcap_data_quality_status` and `redcap_data_quality_resolution`, `INNER JOIN`'d on `status_id`
@@ -95,8 +95,9 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
   - `redcap_external_modules_log.csv`[^em_module_logs_table_as_db]: All entries in this table have the module's `directory_prefix` stored as an additional column for disambiguation.
   - `redcap_event_tables.csv`: An aggregate of information from `redcap_events_*` tables (`arms`, `metadata`, `forms`, `repeat`). Provided to serve as a lookup table to manually disambiguate columns that are likely meaningless on a different target server (e.g. `event_id`).
   - `redcap_alerts`
-    - `redcap_alerts.csv`: An aggregate of information from `redcap_alerts` and `redcap_alerts_recurrence`. Likely be helpful as a lookup table for `redcap_alerts_sent.csv`
+    - `redcap_alerts.csv`: An aggregate of information from `redcap_alerts` and `redcap_alerts_recurrence`. Likely helpful as a lookup table for `redcap_alerts_sent.csv`
     - `redcap_alerts_sent.csv`: An aggregate of `redcap_alerts_sent` and `redcap_alerts_sent_log` tables. This is split from `redcap_alerts.csv` to minimize file size.
+  - `redcap_user_lookup`:`ui_id`, `username`, and `user_email` from the `redcap_user_information` table for users that are admins and/or have access to the project. Provided to disambiguate log entries which identify user via `ui_id` rather than `user[name]` (e.g. `redcap_external_modules_log`).
 
 ## Potential Limitations
 

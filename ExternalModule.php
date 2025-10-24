@@ -175,6 +175,14 @@ class ExternalModule extends AbstractExternalModule
 				WHERE ra.project_id = ?
 		_SQL;
 
+		$user_lookup_sql = <<<_SQL
+			SELECT DISTINCT rui.ui_id, rui.username, rui.user_email FROM redcap_user_information AS rui
+				INNER JOIN redcap_user_rights AS rur
+					ON rui.username = rur.username
+				WHERE (rur.project_id = ?
+					OR rui.super_user = 1)
+		_SQL;
+
 		$sql_arrs = [
 			"redcap_projects" => $project_sql,
 			"redcap_external_module_settings" => $em_sql,
@@ -183,7 +191,8 @@ class ExternalModule extends AbstractExternalModule
 			"redcap_log_event" => $log_sql,
 			"redcap_event_tables" => $event_metadata_sql,
 			"redcap_alerts" => $alerts_sql,
-			"redcap_alerts_sent" => $alerts_sent_sql
+			"redcap_alerts_sent" => $alerts_sent_sql,
+			"redcap_user_lookup" => $user_lookup_sql
 		];
 
 		$prefixed_sql_arrs = array_map(
