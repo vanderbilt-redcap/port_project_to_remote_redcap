@@ -107,6 +107,8 @@ Images embedded in field descriptions (e.g. via rich text editor) will not rende
 
 Randomization is not currently supported.
 
+You should not navigate away from the project port page during the transfer process. This will likely change in a future update.
+
 Survey responses will ported as if they were regular entries on a data entry form, they will _not_ be marked as surveys on the ported project. Furthermore, survey links will _not_ magically redirect to your new project's location, you will likely want to perform redirects from your old server.
 
 Log records associated with the project are collated locally in temporary files prior to being transferred to the remote instance; it's possible you may be limited by your instance's hardware. Use the **Local Memory Limit** system setting if you run into issues here.  
