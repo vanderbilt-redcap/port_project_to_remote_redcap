@@ -7,14 +7,15 @@ assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+<!-- Please check the Limitations section of the README, your request may already be planned. -->
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
-
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Describe the feature you'd like**
+<!-- A clear and concise description of what you want to happen. -->
+<!-- e.g.:
+Add these tables to the log port process
+Support e-consent, the following features are missing
+-->
 
 **Additional context**
-Add any other context or screenshots about the feature request here.
+<!-- Add any other context or screenshots about the feature request here. -->
+<!-- A Project XML may be helpful here if there is a built-in  -->
