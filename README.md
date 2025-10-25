@@ -105,9 +105,9 @@ While migration of file upload fields are supported, signature fields **will not
 
 Images embedded in field descriptions (e.g. via rich text editor) will not render in the target project. This is a known bug in REDCap core. This module may temporarily implement a fix to this.
 
-Randomization is not currently supported.
+Randomization is not currently supported. If you need this, please refer to [this REDCap Randomization guide](https://rise.articulate.com/share/M5ArjankIC_352m2XD87Of0K261hJHwQ#/) by Bas de Veer.
 
-You should not navigate away from the project port page during the transfer process. This will likely change in a future update.
+You should not navigate away from the project port page during the transfer, doing so will result in an incomplete transfer. This will likely change in a future update.
 
 Survey responses will ported as if they were regular entries on a data entry form, they will _not_ be marked as surveys on the ported project. Furthermore, survey links will _not_ magically redirect to your new project's location, you will likely want to perform redirects from your old server.
 
