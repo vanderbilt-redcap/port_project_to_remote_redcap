@@ -459,6 +459,8 @@ $(document).ready(function() {
 		let target = $("#record_range_div");
 		const task_name = "get_remote_project_record_ids";
 
+		const formData = new FormData(form);
+
 		// TODO: toggle does not actually alter the value so this is unreliable
 		if (v == 1) {
 			target.show();
@@ -466,15 +468,14 @@ $(document).ready(function() {
 			target.hide();
 		}
 
-
 		await $.ajax({
 			type: "POST",
 			url: pptr_endpoint,
 			data: {
 				"task": task_name,
-				"redcap_csrf_token": redcap_csrf_token
+				"redcap_csrf_token": redcap_csrf_token,
 				// pass all form items
-				// ...Object.fromEntries(formData.entries())
+				...Object.fromEntries(formData.entries())
 			},
 			success: (msg) => {
 				let parsed = JSON.parse(msg);

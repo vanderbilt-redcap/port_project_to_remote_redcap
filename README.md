@@ -81,6 +81,7 @@ Click the "Transfer project" button to initiate the transfer. Statuses for each 
 - `port_records`: Records are ported in batches of 10 to prevent issues with hardware limitations.
   - **Delete remote records before importing**: check this to delete any records in the remote project before starting the transfer process. Typically not needed, but potentially useful if project changes are made and additional data was collected after an initial transfer has been made.
   - **Port file fields**: port the contents of file upload fields (except signatures). This may be time intensive in projects with a large number of files, toggleable to same time on repeat runs.
+  - **Port record range**: restrict the record port process to a specific range of records. Potentially useful to fill gaps if more data has been added or if a previous port was incomplete.
 - `port_file_repository`: All contents of the source project's file repository, as well as directory structure will be ported.
   - The module will create a reserved folder for itself in the target project titled "PPtRR_reserved_folder".
   - Running this repeatedly will result in duplicating files and directories.
