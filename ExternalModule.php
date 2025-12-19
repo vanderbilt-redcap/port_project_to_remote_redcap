@@ -689,6 +689,10 @@ class ExternalModule extends AbstractExternalModule
 	private function portFileFields($rc_data) {
 
 		if ($this->Proj->hasFileUploadFields) {
+			// HACK: in case this has been reached without file fields, gather all of them
+			if (empty($this->file_fields)) {
+				$this->tabulateFileFields();
+			}
 			$rc_data_arr = json_decode($rc_data, 1);
 			$record_primary_key = $this->Proj->table_pk;
 
@@ -734,6 +738,7 @@ class ExternalModule extends AbstractExternalModule
 		// TODO: detect cloud storage and tell user this is unlikely to work
 		// TODO: actually support cloud storage?
 
+		// TODO: replace with $this->getEdocPath once corresponding EMFW version is released
 		$file_real_path = EDOC_PATH . $edocs_tbl['stored_name'];
 		if (!file_exists($file_real_path)) {
 			// system may have been configured to put edocs in specific folders for PIDs
@@ -1209,7 +1214,7 @@ class ExternalModule extends AbstractExternalModule
 				"min" => $response[0][$this->Proj->table_pk],
 				"max" => end($response)[$this->Proj->table_pk]
 			];
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			$result = ["error" => "Cannot fetch records from target project"];
 		}
 
