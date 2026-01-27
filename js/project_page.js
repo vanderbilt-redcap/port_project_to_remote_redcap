@@ -514,7 +514,9 @@ $(document).ready(function() {
 
 				for (const el_id of ["#record_range_start", "#record_range_end"]) {
 					$(el_id).select2({
-						data: record_id_dropdown_data
+						data: record_id_dropdown_data,
+						dropdownAutoWidth: true,
+						width: 'auto'
 					});
 				}
 			}
