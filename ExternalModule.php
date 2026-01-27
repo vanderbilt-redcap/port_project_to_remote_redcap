@@ -626,11 +626,8 @@ class ExternalModule extends AbstractExternalModule
 
 		$get_data_return = REDCap::getData($get_data_params);
 
-		$rc_records = [];
-
-		foreach ($get_data_return as $record) {
-			$rc_records[] = $record[$this->Proj->table_pk];
-		}
+		// NOTE: array_unique necessary as multiple arms result in repeats of the same record
+		$rc_records = array_unique(array_column($get_data_return, $this->Proj->table_pk));
 
 		return $rc_records;
 	}
