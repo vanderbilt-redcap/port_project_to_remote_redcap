@@ -1217,4 +1217,66 @@ class ExternalModule extends AbstractExternalModule
 
 		return $result;
 	}
+
+
+	public function getRecentLogs() {
+		$sql = <<<_SQL
+			SELECT external_module_id FROM redcap_external_modules
+				WHERE directory_prefix = ?
+			LIMIT 1
+		_SQL;
+		$result = $this->queryWrapper($sql, [$this->getPrefix()]);
+		$this_em_id = $result[0]['external_module_id'];
+
+		$potential_task_list = ["update_remote_project_design", "port_records", "port_users", "port_dags", "port_file_repository", "store_logs"];
+		$sqlized_potential_task_list = "'" . implode("', '", $potential_task_list) . "'";
+
+		$sql = <<<_SQL
+			SELECT * FROM redcap_external_modules_log
+				WHERE project_id = ?
+					AND external_module_id = ?
+					AND message IN (?)
+			ORDER BY log_id DESC
+		_SQL;
+		$params = [$this->Proj->project_id ?? PROJECT_ID, $this_em_id, $sqlized_potential_task_list];
+		// above is 0???
+
+		$sql = <<<_SQL
+			WITH RankedMessages AS (
+					SELECT
+							rcl.log_id,
+							rcl.timestamp,
+							rcl.message,
+							rclp.value,
+							ROW_NUMBER() OVER (PARTITION BY rcl.message ORDER BY rcl.timestamp DESC) AS row_num
+					FROM
+							redcap_external_modules_log rcl
+					LEFT JOIN
+							redcap_external_modules_log_parameters rclp
+					ON
+							rcl.log_id = rclp.log_id
+					WHERE
+							rcl.project_id = ?
+							AND rcl.external_module_id = ?
+							AND rcl.message IN ($sqlized_potential_task_list)
+			)
+			SELECT
+					log_id,
+					timestamp,
+					message,
+					value
+			FROM
+					RankedMessages
+			WHERE
+					row_num = 1
+			ORDER BY
+					log_id DESC;
+		_SQL;
+
+		$params = [$this->Proj->project_id ?? PROJECT_ID, $this_em_id];
+
+		$result = $this->queryWrapper($sql, $params);
+
+		return $result;
+	}
 }
