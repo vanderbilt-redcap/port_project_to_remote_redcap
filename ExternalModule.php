@@ -814,7 +814,16 @@ class ExternalModule extends AbstractExternalModule
 
 			$file_prefix = "{$timestamp}_{$table}";
 
+			$this->framework->log("DBG QB batch beginning", [
+				"table" => $table,
+				"input_query" => $sql
+			]);
+
 			$QB->portAllBatches($file_prefix);
+
+			$this->framework->log("DBG QB batch complete", [
+				"table" => $table
+			]);
 		}
 	}
 
